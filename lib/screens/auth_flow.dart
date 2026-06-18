@@ -91,6 +91,19 @@ class _QuickSignUpScreenState extends State<QuickSignUpScreen> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
 
+  // Country code selector — default Australia
+  String _countryCode = '+61';
+  final List<Map<String, String>> _countryCodes = [
+    {'flag': '🇦🇺', 'code': '+61', 'name': 'Australia'},
+    {'flag': '🇮🇳', 'code': '+91', 'name': 'India'},
+    {'flag': '🇺🇸', 'code': '+1',  'name': 'USA'},
+    {'flag': '🇬🇧', 'code': '+44', 'name': 'UK'},
+    {'flag': '🇳🇿', 'code': '+64', 'name': 'New Zealand'},
+    {'flag': '🇸🇬', 'code': '+65', 'name': 'Singapore'},
+  ];
+
+  String get _fullMobile => '$_countryCode${_mobileController.text.trim()}';
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -114,7 +127,7 @@ class _QuickSignUpScreenState extends State<QuickSignUpScreen> {
     final payload = {
       'full_name': _nameController.text.trim(),
       'email': _emailController.text.trim(),
-      'mobile': _mobileController.text.trim(),
+      'mobile': _fullMobile,   // already E.164 — e.g. +61412345678
       'password': _passwordController.text.trim(),
     };
 
@@ -128,7 +141,7 @@ class _QuickSignUpScreenState extends State<QuickSignUpScreen> {
         if (mounted) {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => OTPVerificationScreen(mobileNumber: _mobileController.text.trim())),
+            MaterialPageRoute(builder: (_) => OTPVerificationScreen(mobileNumber: _fullMobile)),
           );
         }
       } else {
@@ -167,7 +180,61 @@ class _QuickSignUpScreenState extends State<QuickSignUpScreen> {
               const SizedBox(height: AppDimens.sectionGap),
               DarkTextField(hint: 'Email Address', keyboardType: TextInputType.emailAddress, controller: _emailController),
               const SizedBox(height: AppDimens.sectionGap),
-              DarkTextField(hint: 'Mobile Number', keyboardType: TextInputType.phone, controller: _mobileController),
+
+              // ── Country code + phone number row ──
+              Container(
+                decoration: BoxDecoration(
+                  color: AppColors.inputFill,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    // Country code dropdown
+                    PopupMenuButton<String>(
+                      color: AppColors.surfaceCard,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      onSelected: (val) => setState(() => _countryCode = val),
+                      itemBuilder: (_) => _countryCodes.map((c) => PopupMenuItem<String>(
+                        value: c['code'],
+                        child: Text(
+                          '${c["flag"]}  ${c["name"]} (${c["code"]})',
+                          style: const TextStyle(color: AppColors.textPrimary),
+                        ),
+                      )).toList(),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+                        child: Row(
+                          children: [
+                            Text(
+                              '${_countryCodes.firstWhere((c) => c["code"] == _countryCode)["flag"]}  $_countryCode',
+                              style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(Icons.arrow_drop_down, color: AppColors.textSecondary, size: 20),
+                          ],
+                        ),
+                      ),
+                    ),
+                    // Vertical divider
+                    Container(width: 1, height: 24, color: AppColors.textSecondary.withOpacity(0.3)),
+                    // Phone number input
+                    Expanded(
+                      child: TextField(
+                        controller: _mobileController,
+                        keyboardType: TextInputType.phone,
+                        style: const TextStyle(color: AppColors.textPrimary),
+                        decoration: const InputDecoration(
+                          hintText: 'Phone number',
+                          hintStyle: TextStyle(color: AppColors.textSecondary),
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
               const SizedBox(height: AppDimens.sectionGap),
               DarkTextField(hint: 'Password', obscureText: true, controller: _passwordController),
               
@@ -297,7 +364,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                             final res = await api.resendOTP(widget.mobileNumber);
                             if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text(res['success'] ? 'New code sent!' : 'Failed: \${res["error"]}')),
+                                SnackBar(content: Text(res['success'] ? 'New code sent!' : 'Failed: ${res["error"]}')),
                               );
                             }
                           },
