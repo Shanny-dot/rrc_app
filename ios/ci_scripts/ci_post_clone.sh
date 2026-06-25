@@ -19,7 +19,7 @@ flutter precache --ios
 flutter pub get
 
 # 5. Generate Generated.xcconfig and .symlinks
-flutter build ios --config-only
+flutter build ios --config-only --no-codesign
 
 # 6. Install project dependencies
 cd ios
