@@ -18,7 +18,10 @@ flutter precache --ios
 # 4. Fetch the Flutter project dependencies
 flutter pub get
 
-# 5. Install project dependencies
+# 5. Generate Generated.xcconfig and .symlinks
+flutter build ios --config-only
+
+# 6. Install project dependencies
 cd ios
 pod install
 
