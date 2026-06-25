@@ -18,8 +18,7 @@ flutter precache --ios
 # 4. Fetch the Flutter project dependencies
 flutter pub get
 
-# 5. Install CocoaPods and project dependencies
-HOMEBREW_NO_AUTO_UPDATE=1 brew install cocoapods
+# 5. Install project dependencies
 cd ios
 pod install
 
