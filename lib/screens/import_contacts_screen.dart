@@ -22,12 +22,17 @@ class _ImportContactsScreenState extends State<ImportContactsScreen> {
   }
 
   Future<void> _fetchContacts() async {
-    if (!await FlutterContacts.requestPermission(readonly: true)) {
+    final status = await FlutterContacts.permissions.request(PermissionType.read);
+    if (status != PermissionStatus.granted && status != PermissionStatus.limited) {
       setState(() => _permissionDenied = true);
       return;
     }
 
-    final contacts = await FlutterContacts.getContacts(withProperties: true);
+    final contacts = await FlutterContacts.getAll(properties: {
+      ContactProperty.name,
+      ContactProperty.phone,
+      ContactProperty.email,
+    });
     setState(() => _contacts = contacts);
   }
 
@@ -49,7 +54,7 @@ class _ImportContactsScreenState extends State<ImportContactsScreen> {
               ),
               const SizedBox(height: 16),
               ElevatedButton(
-                onPressed: () => FlutterContacts.requestPermission(readonly: true).then((_) => _fetchContacts()),
+                onPressed: () => FlutterContacts.permissions.request(PermissionType.read).then((_) => _fetchContacts()),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryGold,
                   foregroundColor: Colors.black,
@@ -71,7 +76,7 @@ class _ImportContactsScreenState extends State<ImportContactsScreen> {
 
     // Filter contacts based on search query
     final filteredContacts = _contacts!.where((c) {
-      final nameMatches = c.displayName.toLowerCase().contains(_searchQuery.toLowerCase());
+      final nameMatches = (c.displayName ?? '').toLowerCase().contains(_searchQuery.toLowerCase());
       final phoneMatches = c.phones.isNotEmpty && c.phones.any((phone) => phone.number.contains(_searchQuery));
       return nameMatches || phoneMatches;
     }).toList();
@@ -117,7 +122,7 @@ class _ImportContactsScreenState extends State<ImportContactsScreen> {
                     itemCount: filteredContacts.length,
                     itemBuilder: (context, index) {
                       final contact = filteredContacts[index];
-                      final name = contact.displayName;
+                      final name = contact.displayName ?? '';
                       final phone = contact.phones.isNotEmpty ? contact.phones.first.number : '';
                       final email = contact.emails.isNotEmpty ? contact.emails.first.address : '';
 
