@@ -613,7 +613,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   text: "Don't have an account? Sign Up",
                   isTextLink: true,
                   onPressed: () {
-                    Navigator.pop(context);
+                    if (Navigator.canPop(context)) {
+                      Navigator.pop(context);
+                    } else {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (_) => const QuickSignUpScreen()),
+                      );
+                    }
                   },
                 ),
               ),

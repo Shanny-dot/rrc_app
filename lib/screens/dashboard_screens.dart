@@ -1186,6 +1186,72 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  void _showDeleteAccountConfirmation() {
+    showDialog(
+      context: context,
+      barrierDismissible: !_isSaving,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: AppColors.surfaceCard,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text(
+            'Delete Account',
+            style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
+          ),
+          content: const Text(
+            'Are you sure you want to delete your account? This action is permanent and cannot be undone. All your data, points, and referrals will be deleted permanently.',
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () async {
+                Navigator.of(context).pop(); // Close dialog
+                setState(() => _isSaving = true);
+                final res = await _apiService.deleteAccount();
+                setState(() => _isSaving = false);
+                if (mounted) {
+                  if (res['success']) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Account successfully deleted.', style: TextStyle(color: Colors.white)),
+                        backgroundColor: AppColors.success,
+                      ),
+                    );
+                    // Log out and send to login screen
+                    await _apiService.logout();
+                    if (mounted) {
+                      Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (context) => const LoginScreen()),
+                        (route) => false,
+                      );
+                    }
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error deleting account: ${res['error']}', style: const TextStyle(color: Colors.white)),
+                        backgroundColor: AppColors.error,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Text('Delete Permanently'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1270,6 +1336,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                  }
                },
                child: const Text('Log Out', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: _showDeleteAccountConfirmation,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.error,
+              ),
+              child: const Text(
+                'Delete Account',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, decoration: TextDecoration.underline),
+              ),
             ),
             const SizedBox(height: 24),
           ],

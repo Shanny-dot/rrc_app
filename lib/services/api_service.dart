@@ -300,4 +300,24 @@ class ApiService {
       return {'success': false, 'error': data['detail'] ?? 'Failed to update profile'};
     }
   }
+
+  // Delete User Account
+  Future<Map<String, dynamic>> deleteAccount() async {
+    final headers = await _getHeaders();
+    final response = await http.delete(
+      Uri.parse('$baseUrl/api/v1/auth/account'),
+      headers: headers,
+    );
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return {'success': true, 'data': data};
+    } else {
+      String errMsg = 'Failed to delete account';
+      try {
+        final data = jsonDecode(response.body);
+        errMsg = data['detail'] ?? errMsg;
+      } catch (_) {}
+      return {'success': false, 'error': errMsg};
+    }
+  }
 }
