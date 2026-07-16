@@ -22,18 +22,23 @@ class _ImportContactsScreenState extends State<ImportContactsScreen> {
   }
 
   Future<void> _fetchContacts() async {
-    final status = await FlutterContacts.permissions.request(PermissionType.read);
-    if (status != PermissionStatus.granted && status != PermissionStatus.limited) {
-      setState(() => _permissionDenied = true);
-      return;
-    }
+    try {
+      final status = await FlutterContacts.permissions.request(PermissionType.read);
+      if (status != PermissionStatus.granted && status != PermissionStatus.limited) {
+        setState(() => _permissionDenied = true);
+        return;
+      }
 
-    final contacts = await FlutterContacts.getAll(properties: {
-      ContactProperty.name,
-      ContactProperty.phone,
-      ContactProperty.email,
-    });
-    setState(() => _contacts = contacts);
+      final contacts = await FlutterContacts.getAll(properties: {
+        ContactProperty.name,
+        ContactProperty.phone,
+        ContactProperty.email,
+      });
+      setState(() => _contacts = contacts);
+    } catch (e) {
+      debugPrint("Failed to fetch contacts: $e");
+      setState(() => _contacts = []);
+    }
   }
 
   @override

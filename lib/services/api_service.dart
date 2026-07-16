@@ -60,14 +60,28 @@ class ApiService {
     }
   }
 
+  // Safe HTTP request helper with built-in 15-second timeout and exception handling
+  Future<http.Response> _safeRequest(Future<http.Response> Function() requestFn) async {
+    try {
+      return await requestFn().timeout(const Duration(seconds: 15));
+    } catch (e) {
+      debugPrint("API request error: $e");
+      return http.Response(
+        jsonEncode({'detail': 'Network connection timed out. Please check your connection and try again.'}),
+        504,
+        headers: {'content-type': 'application/json'},
+      );
+    }
+  }
+
   Future<Map<String, dynamic>> resendOTP(String mobile) async {
-    final response = await http.post(
+    final response = await _safeRequest(() => http.post(
       Uri.parse('$baseUrl/api/v1/auth/resend-otp'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'mobile': mobile,
       }),
-    );
+    ));
 
     final data = jsonDecode(response.body);
     if (response.statusCode == 200 || response.statusCode == 201) {
@@ -78,14 +92,14 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> login(String email, String password) async {
-    final response = await http.post(
+    final response = await _safeRequest(() => http.post(
       Uri.parse('$baseUrl/api/v1/auth/login'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'email': email,
         'password': password,
       }),
-    );
+    ));
 
     final data = jsonDecode(response.body);
     if (response.statusCode == 200) {
@@ -98,11 +112,11 @@ class ApiService {
 
   Future<Map<String, dynamic>> register(Map<String, dynamic> userData) async {
     // The FastAPI expects the user payload in the body
-    final response = await http.post(
+    final response = await _safeRequest(() => http.post(
       Uri.parse('$baseUrl/api/v1/auth/register'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode(userData),
-    );
+    ));
 
     final data = jsonDecode(response.body);
     if (response.statusCode == 200 || response.statusCode == 201) {
@@ -116,14 +130,14 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> verifyMobile(String mobile, String otpCode) async {
-    final response = await http.post(
+    final response = await _safeRequest(() => http.post(
       Uri.parse('$baseUrl/api/v1/auth/verify-mobile'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'mobile': mobile,
         'code': otpCode,
       }),
-    );
+    ));
 
     final data = jsonDecode(response.body);
     if (response.statusCode == 200) {
@@ -139,11 +153,11 @@ class ApiService {
   // Submit Referral
   Future<Map<String, dynamic>> submitReferral(Map<String, String> referralData) async {
     final headers = await _getHeaders();
-    final response = await http.post(
+    final response = await _safeRequest(() => http.post(
       Uri.parse('$baseUrl/api/v1/referrals/'),
       headers: headers,
       body: jsonEncode(referralData),
-    );
+    ));
     final data = jsonDecode(response.body);
     if (response.statusCode == 200 || response.statusCode == 201) {
       return {'success': true, 'data': data};
@@ -155,10 +169,10 @@ class ApiService {
   // Get Referrals
   Future<Map<String, dynamic>> getReferrals() async {
     final headers = await _getHeaders();
-    final response = await http.get(
+    final response = await _safeRequest(() => http.get(
       Uri.parse('$baseUrl/api/v1/referrals/'),
       headers: headers,
-    );
+    ));
     if (response.statusCode == 200) {
       return {'success': true, 'data': jsonDecode(response.body)};
     }
@@ -168,10 +182,10 @@ class ApiService {
   // Get current user profile
   Future<Map<String, dynamic>> getMe() async {
     final headers = await _getHeaders();
-    final response = await http.get(
+    final response = await _safeRequest(() => http.get(
       Uri.parse('$baseUrl/api/v1/auth/me'),
       headers: headers,
-    );
+    ));
 
     if (response.statusCode == 200) {
       return {'success': true, 'data': jsonDecode(response.body)};
@@ -183,10 +197,10 @@ class ApiService {
   // Get Events
   Future<Map<String, dynamic>> getEvents() async {
     final headers = await _getHeaders();
-    final response = await http.get(
+    final response = await _safeRequest(() => http.get(
       Uri.parse('$baseUrl/api/v1/events/'),
       headers: headers,
-    );
+    ));
     if (response.statusCode == 200) {
       return {'success': true, 'data': jsonDecode(response.body)};
     } else {
@@ -197,10 +211,10 @@ class ApiService {
   // RSVP to Event
   Future<Map<String, dynamic>> rsvpEvent(String eventId) async {
     final headers = await _getHeaders();
-    final response = await http.post(
+    final response = await _safeRequest(() => http.post(
       Uri.parse('$baseUrl/api/v1/events/$eventId/rsvp'),
       headers: headers,
-    );
+    ));
     final data = jsonDecode(response.body);
     if (response.statusCode == 200) {
       return {'success': true, 'data': data};
@@ -212,10 +226,10 @@ class ApiService {
   // Scan Event QR Code (User scanning Admin Event QR)
   Future<Map<String, dynamic>> scanEventAttendance(String eventId) async {
     final headers = await _getHeaders();
-    final response = await http.post(
+    final response = await _safeRequest(() => http.post(
       Uri.parse('$baseUrl/api/v1/events/$eventId/scan-attendance'),
       headers: headers,
-    );
+    ));
     final data = jsonDecode(response.body);
     if (response.statusCode == 200) {
       return {'success': true, 'data': data};
@@ -227,11 +241,11 @@ class ApiService {
   // Invite Guests
   Future<Map<String, dynamic>> inviteGuests(String eventId, List<Map<String, String>> guests) async {
     final headers = await _getHeaders();
-    final response = await http.post(
+    final response = await _safeRequest(() => http.post(
       Uri.parse('$baseUrl/api/v1/events/$eventId/invite-guests'),
       headers: headers,
       body: jsonEncode(guests),
-    );
+    ));
     final data = jsonDecode(response.body);
     if (response.statusCode == 200) {
       return {'success': true, 'data': data};
@@ -243,10 +257,10 @@ class ApiService {
   // Get Rewards
   Future<Map<String, dynamic>> getRewards() async {
     final headers = await _getHeaders();
-    final response = await http.get(
+    final response = await _safeRequest(() => http.get(
       Uri.parse('$baseUrl/api/v1/rewards/'),
       headers: headers,
-    );
+    ));
     if (response.statusCode == 200) {
       return {'success': true, 'data': jsonDecode(response.body)};
     } else {
@@ -258,10 +272,10 @@ class ApiService {
   Future<Map<String, dynamic>> redeemReward(String rewardId) async {
     final headers = await _getHeaders();
     headers['Content-Type'] = 'application/json';
-    final response = await http.post(
+    final response = await _safeRequest(() => http.post(
       Uri.parse('$baseUrl/api/v1/rewards/$rewardId/redeem'),
       headers: headers,
-    );
+    ));
     final data = jsonDecode(response.body);
     if (response.statusCode == 200) {
       return {'success': true, 'data': data};
@@ -273,10 +287,10 @@ class ApiService {
   // Get Transactions (Activity)
   Future<Map<String, dynamic>> getTransactions() async {
     final headers = await _getHeaders();
-    final response = await http.get(
+    final response = await _safeRequest(() => http.get(
       Uri.parse('$baseUrl/api/v1/transactions/'),
       headers: headers,
-    );
+    ));
     if (response.statusCode == 200) {
       return {'success': true, 'data': jsonDecode(response.body)};
     } else {
@@ -287,11 +301,11 @@ class ApiService {
   // Update User Profile
   Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> profileData) async {
     final headers = await _getHeaders();
-    final response = await http.put(
+    final response = await _safeRequest(() => http.put(
       Uri.parse('$baseUrl/api/v1/auth/profile'),
       headers: headers,
       body: jsonEncode(profileData),
-    );
+    ));
 
     if (response.statusCode == 200) {
       return {'success': true, 'data': jsonDecode(response.body)};
@@ -304,10 +318,10 @@ class ApiService {
   // Delete User Account
   Future<Map<String, dynamic>> deleteAccount() async {
     final headers = await _getHeaders();
-    final response = await http.delete(
+    final response = await _safeRequest(() => http.delete(
       Uri.parse('$baseUrl/api/v1/auth/account'),
       headers: headers,
-    );
+    ));
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       return {'success': true, 'data': data};

@@ -24,21 +24,25 @@ class _SplashScreenState extends State<SplashScreen> {
   Future<void> _checkAuthStatus() async {
      await Future.delayed(const Duration(seconds: 2));
      
-     final api = ApiService();
-     final hasToken = await api.isLoggedIn();
-     
-     if (hasToken) {
-        // Ping backend to ensure token is still valid
-        final res = await api.getMe();
-        if (res['success']) {
-           if (mounted) {
-              Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const MainAppScaffold()));
-           }
-           return;
-        }
+     try {
+       final api = ApiService();
+       final hasToken = await api.isLoggedIn();
+       
+       if (hasToken) {
+          // Ping backend to ensure token is still valid (timeout after 10s to prevent getting stuck)
+          final res = await api.getMe().timeout(const Duration(seconds: 10));
+          if (res['success']) {
+             if (mounted) {
+                Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const MainAppScaffold()));
+             }
+             return;
+          }
+       }
+     } catch (e) {
+       debugPrint("Auth check failed or timed out: $e");
      }
      
-     // Fallback to Quick Sign Up if no token or token is deeply expired
+     // Fallback to Quick Sign Up if no token, token is deeply expired, or network error occurs
      if (mounted) {
         Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const QuickSignUpScreen()));
      }
