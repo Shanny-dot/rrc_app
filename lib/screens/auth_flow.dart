@@ -51,30 +51,61 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 200,
-              height: 100,
-              decoration: BoxDecoration(
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primaryGold.withOpacity(0.3),
-                    blurRadius: 40,
-                    spreadRadius: 15,
+      body: Container(
+        decoration: const BoxDecoration(
+          // Radial gradient matching the logo's own dark centre, so it bleeds out naturally
+          gradient: RadialGradient(
+            center: Alignment.center,
+            radius: 1.2,
+            colors: [
+              Color(0xFF111111), // slightly lighter near logo
+              Color(0xFF0A0A0A), // app background at edges
+            ],
+          ),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Gold ambient glow layer + clipped logo — no visible hard edges
+              Container(
+                width: 180,
+                height: 180,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(36),
+                  boxShadow: [
+                    // Soft gold ambient glow
+                    BoxShadow(
+                      color: AppColors.primaryGold.withOpacity(0.35),
+                      blurRadius: 50,
+                      spreadRadius: 8,
+                    ),
+                    // Darker inner shadow for depth
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.6),
+                      blurRadius: 20,
+                      spreadRadius: -4,
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  // Match the PNG logo's own rounded corner radius
+                  borderRadius: BorderRadius.circular(36),
+                  child: Image.asset(
+                    'assets/images/rrc_logo.png',
+                    width: 180,
+                    height: 180,
+                    fit: BoxFit.cover,
                   ),
-                ],
+                ),
               ),
-              child: Image.asset(
-                'assets/images/rrc_logo.png',
-                fit: BoxFit.contain,
+              const SizedBox(height: 36),
+              Text(
+                'EXCLUSIVE REWARDS',
+                style: AppTextStyles.labelMedium.copyWith(letterSpacing: 3),
               ),
-            ),
-            const SizedBox(height: 32),
-            Text('EXCLUSIVE REWARDS', style: AppTextStyles.labelMedium.copyWith(letterSpacing: 2)),
-          ],
+            ],
+          ),
         ),
       ),
     );
