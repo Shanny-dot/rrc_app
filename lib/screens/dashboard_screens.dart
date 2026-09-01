@@ -637,6 +637,9 @@ class _RewardsTabState extends State<RewardsTab> {
   final ApiService _apiService = ApiService();
   bool _isLoading = true;
   List<dynamic> _rewards = [];
+  String _selectedCategory = 'All';
+
+  final List<String> _categories = ['All', 'Experiences', 'Dining', 'Travel', 'Vouchers', 'Lifestyle'];
 
   @override
   void initState() {
@@ -652,14 +655,24 @@ class _RewardsTabState extends State<RewardsTab> {
         _rewards = result['data'];
       }
     } catch (e) {
-      debugPrint("Rewards Error: \$e");
+      debugPrint("Rewards Error: $e");
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
+  List<dynamic> get _filteredRewards {
+    if (_selectedCategory == 'All') return _rewards;
+    return _rewards.where((r) {
+      final cat = (r['category'] ?? r['title'] ?? r['description'] ?? '').toString().toLowerCase();
+      return cat.contains(_selectedCategory.toLowerCase());
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final displayedRewards = _filteredRewards;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Rewards')),
       body: Column(
@@ -668,20 +681,25 @@ class _RewardsTabState extends State<RewardsTab> {
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: AppDimens.pageMargin, vertical: 8),
             child: Row(
-              children: [
-                _buildFilterChip('All', true),
-                _buildFilterChip('Experiences', false),
-                _buildFilterChip('Dining', false),
-                _buildFilterChip('Travel', false),
-              ],
+              children: _categories.map((cat) {
+                final isSelected = _selectedCategory == cat;
+                return GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedCategory = cat;
+                    });
+                  },
+                  child: _buildFilterChip(cat, isSelected),
+                );
+              }).toList(),
             ),
           ),
           const SizedBox(height: 8),
           Expanded(
             child: _isLoading 
               ? const Center(child: CircularProgressIndicator(color: AppColors.primaryGold))
-              : _rewards.isEmpty 
-                ? Center(child: Text("No rewards available", style: AppTextStyles.labelMedium))
+              : displayedRewards.isEmpty 
+                ? Center(child: Text(_rewards.isEmpty ? "No rewards available" : "No rewards in this category", style: AppTextStyles.labelMedium))
                 : RefreshIndicator(
                     color: AppColors.primaryGold,
                     backgroundColor: AppColors.surfaceCard,
@@ -694,9 +712,9 @@ class _RewardsTabState extends State<RewardsTab> {
                         mainAxisSpacing: 16,
                         childAspectRatio: 0.7,
                       ),
-                      itemCount: _rewards.length,
+                      itemCount: displayedRewards.length,
                       itemBuilder: (context, index) {
-                        final reward = _rewards[index];
+                        final reward = displayedRewards[index];
                         return _buildRewardCard(
                           context,
                           id: reward['id'].toString(),
@@ -864,13 +882,24 @@ class EventsTab extends StatefulWidget {
 
 class _EventsTabState extends State<EventsTab> {
   final ApiService _apiService = ApiService();
+  final TextEditingController _searchController = TextEditingController();
   bool _isLoading = true;
   List<dynamic> _events = [];
+  String _selectedCategory = 'All';
+  String _searchQuery = '';
+
+  final List<String> _categories = ['All', 'Gala & Dining', 'Networking', 'Real Estate', 'Exclusives', 'VIP'];
 
   @override
   void initState() {
     super.initState();
     _fetchEvents();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchEvents() async {
@@ -881,10 +910,30 @@ class _EventsTabState extends State<EventsTab> {
         _events = result['data'];
       }
     } catch (e) {
-      debugPrint("Events Error: \$e");
+      debugPrint("Events Error: $e");
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  List<dynamic> get _filteredEvents {
+    return _events.where((e) {
+      final title = (e['title'] ?? '').toString().toLowerCase();
+      final description = (e['description'] ?? '').toString().toLowerCase();
+      final location = (e['location'] ?? '').toString().toLowerCase();
+      final category = (e['category'] ?? e['title'] ?? e['description'] ?? '').toString().toLowerCase();
+
+      final matchesQuery = _searchQuery.isEmpty ||
+          title.contains(_searchQuery.toLowerCase()) ||
+          description.contains(_searchQuery.toLowerCase()) ||
+          location.contains(_searchQuery.toLowerCase());
+
+      final matchesCategory = _selectedCategory == 'All' ||
+          category.contains(_selectedCategory.toLowerCase()) ||
+          title.contains(_selectedCategory.toLowerCase());
+
+      return matchesQuery && matchesCategory;
+    }).toList();
   }
 
   Future<void> _handleRsvp(String eventId) async {
@@ -899,12 +948,33 @@ class _EventsTabState extends State<EventsTab> {
   }
 
   void _handleRefer(String eventId) {
-     // Ideally pass eventId to ReferFormScreen to link the guest automatically
      Navigator.push(context, MaterialPageRoute(builder: (_) => const ReferFormScreen()));
+  }
+
+  Widget _buildFilterChip(String label, bool isSelected) {
+    return Container(
+      margin: const EdgeInsets.only(right: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: isSelected ? AppColors.primaryGold : AppColors.surfaceCard,
+        borderRadius: BorderRadius.circular(AppDimens.radiusPill),
+        border: Border.all(color: isSelected ? AppColors.primaryGold : AppColors.inputFill),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: isSelected ? AppColors.backgroundBase : AppColors.textPrimary,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+          fontSize: 13,
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final displayedEvents = _filteredEvents;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Events')),
       floatingActionButton: FloatingActionButton.extended(
@@ -918,29 +988,53 @@ class _EventsTabState extends State<EventsTab> {
       ),
       body: Column(
         children: [
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: AppDimens.pageMargin),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppDimens.pageMargin),
             child: DarkTextField(
               hint: 'Search exclusive events...',
-              prefixIcon: Icon(Icons.search_rounded, color: AppColors.textSecondary),
+              controller: _searchController,
+              prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textSecondary),
+              onChanged: (val) {
+                setState(() {
+                  _searchQuery = val.trim();
+                });
+              },
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 12),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: AppDimens.pageMargin),
+            child: Row(
+              children: _categories.map((cat) {
+                final isSelected = _selectedCategory == cat;
+                return GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedCategory = cat;
+                    });
+                  },
+                  child: _buildFilterChip(cat, isSelected),
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 16),
           Expanded(
             child: _isLoading
               ? const Center(child: CircularProgressIndicator(color: AppColors.primaryGold))
-              : _events.isEmpty
-                ? Center(child: Text("No events available", style: AppTextStyles.labelMedium))
+              : displayedEvents.isEmpty
+                ? Center(child: Text(_events.isEmpty ? "No events available" : "No matching events found", style: AppTextStyles.labelMedium))
                 : RefreshIndicator(
                     color: AppColors.primaryGold,
                     backgroundColor: AppColors.surfaceCard,
                     onRefresh: _fetchEvents,
                     child: ListView.separated(
                       padding: const EdgeInsets.symmetric(horizontal: AppDimens.pageMargin, vertical: 8),
-                      itemCount: _events.length,
+                      itemCount: displayedEvents.length,
                       separatorBuilder: (context, index) => const SizedBox(height: 20),
                       itemBuilder: (context, index) {
-                        final event = _events[index];
+                        final event = displayedEvents[index];
                         final dateStr = event['event_date'] != null 
                              ? event['event_date'].toString().split('T')[0] 
                              : 'TBA';
