@@ -279,6 +279,19 @@ class _QuickSignUpScreenState extends State<QuickSignUpScreen> {
                 text: _isLoading ? 'Creating...' : 'Create Account',
                 onPressed: _isLoading ? () {} : _handleSignup,
               ),
+              const SizedBox(height: 20),
+              
+              SocialLoginButtons(
+                onSocialSelect: (provider) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Connecting to ${provider.toUpperCase()} Sign-In...'),
+                      backgroundColor: AppColors.primaryGold,
+                    ),
+                  );
+                },
+              ),
+
               const SizedBox(height: 16),
               Center(
                 child: GoldButton(
@@ -718,6 +731,19 @@ class _LoginScreenState extends State<LoginScreen> {
                 text: _isLoading ? 'Logging in...' : 'Login',
                 onPressed: _isLoading ? () {} : _handleLogin,
               ),
+              const SizedBox(height: 20),
+
+              SocialLoginButtons(
+                onSocialSelect: (provider) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Connecting to ${provider.toUpperCase()} Sign-In...'),
+                      backgroundColor: AppColors.primaryGold,
+                    ),
+                  );
+                },
+              ),
+
               const SizedBox(height: 16),
               Center(
                 child: GoldButton(
@@ -738,6 +764,77 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 16),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class SocialLoginButtons extends StatelessWidget {
+  final Function(String provider) onSocialSelect;
+
+  const SocialLoginButtons({Key? key, required this.onSocialSelect}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(child: Container(height: 1, color: const Color(0xFF333333))),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 12),
+              child: Text('OR CONTINUE WITH', style: TextStyle(color: Color(0xFF888888), fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1)),
+            ),
+            Expanded(child: Container(height: 1, color: const Color(0xFF333333))),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Google Button
+            _buildSocialIcon(
+              icon: Icons.g_mobiledata_rounded,
+              label: 'Google',
+              onTap: () => onSocialSelect('google'),
+            ),
+            const SizedBox(width: 12),
+            // Apple Button
+            _buildSocialIcon(
+              icon: Icons.apple,
+              label: 'Apple',
+              onTap: () => onSocialSelect('apple'),
+            ),
+            const SizedBox(width: 12),
+            // Facebook Button
+            _buildSocialIcon(
+              icon: Icons.facebook,
+              label: 'Facebook',
+              onTap: () => onSocialSelect('facebook'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSocialIcon({required IconData icon, required String label, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceCard,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFF333333)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: Colors.white, size: 20),
+            const SizedBox(width: 6),
+            Text(label, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+          ],
         ),
       ),
     );
