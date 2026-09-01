@@ -569,11 +569,76 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
 
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
+  void _showForgotPasswordDialog() {
+    final resetEmailCtrl = TextEditingController(text: _emailController.text.trim());
+    bool isResetting = false;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: AppColors.surfaceCard,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: const Text('Reset Password', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Enter your registered email address to receive password reset instructions.',
+                    style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                  const SizedBox(height: 16),
+                  DarkTextField(hint: 'Email Address', keyboardType: TextInputType.emailAddress, controller: resetEmailCtrl),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryGold,
+                    foregroundColor: AppColors.backgroundBase,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: isResetting ? null : () async {
+                    if (resetEmailCtrl.text.trim().isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Please enter your email address')),
+                      );
+                      return;
+                    }
+
+                    setDialogState(() => isResetting = true);
+                    final api = ApiService();
+                    final res = await api.forgotPassword(resetEmailCtrl.text.trim());
+                    setDialogState(() => isResetting = false);
+
+                    if (dialogContext.mounted) {
+                      Navigator.of(dialogContext).pop();
+                    }
+
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(res['message'] ?? res['error'] ?? 'Reset instructions sent'),
+                          backgroundColor: res['success'] == true ? AppColors.success : AppColors.error,
+                        ),
+                      );
+                    }
+                  },
+                  child: isResetting 
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                    : const Text('Send Reset Link', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   Future<void> _handleLogin() async {
@@ -635,6 +700,17 @@ class _LoginScreenState extends State<LoginScreen> {
               DarkTextField(hint: 'Email Address', keyboardType: TextInputType.emailAddress, controller: _emailController),
               const SizedBox(height: AppDimens.sectionGap),
               DarkTextField(hint: 'Password', obscureText: true, controller: _passwordController, isLocked: false),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: _showForgotPasswordDialog,
+                  child: const Text(
+                    'Forgot Password?',
+                    style: TextStyle(color: AppColors.primaryGold, fontWeight: FontWeight.w600, fontSize: 13),
+                  ),
+                ),
+              ),
               
               const Spacer(),
               

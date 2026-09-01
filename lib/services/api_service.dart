@@ -110,6 +110,21 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> forgotPassword(String email) async {
+    final response = await _safeRequest(() => http.post(
+      Uri.parse('$baseUrl/api/v1/auth/forgot-password'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email}),
+    ));
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return {'success': true, 'message': data['message'] ?? 'Password reset instructions sent'};
+    } else {
+      return {'success': false, 'error': data['detail'] ?? 'Failed to send password reset email'};
+    }
+  }
+
   Future<Map<String, dynamic>> register(Map<String, dynamic> userData) async {
     // The FastAPI expects the user payload in the body
     final response = await _safeRequest(() => http.post(
