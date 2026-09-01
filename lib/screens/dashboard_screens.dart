@@ -1166,6 +1166,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       if (mounted) {
         if (result['success']) {
+          setState(() {
+            _userProfile = result['data'];
+          });
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Profile updated successfully!', style: TextStyle(color: Colors.white)), backgroundColor: AppColors.success),
           );
