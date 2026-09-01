@@ -1290,7 +1290,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
             
             Text('Personal Details', style: AppTextStyles.h3),
             const SizedBox(height: 16),
-            DarkTextField(hint: 'Gender (Optional)', controller: _genderCtrl),
+            DarkDropdownField(
+              hint: 'Select Gender (Optional)',
+              value: _genderCtrl.text.isNotEmpty ? _genderCtrl.text : null,
+              items: const ['Male', 'Female', 'Non-Binary', 'Other', 'Prefer not to say'],
+              onChanged: (val) {
+                if (val != null) {
+                  setState(() {
+                    _genderCtrl.text = val;
+                  });
+                }
+              },
+            ),
             const SizedBox(height: 16),
             DarkTextField(hint: 'Street Address', controller: _addressCtrl),
             const SizedBox(height: 16),
@@ -1309,7 +1320,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 16),
             DarkTextField(hint: 'Industry', controller: _industryCtrl),
             const SizedBox(height: 16),
-            DarkTextField(hint: 'Home Ownership Status', controller: _homeOwnershipCtrl),
+            DarkDropdownField(
+              hint: 'Select Occupancy / Home Ownership',
+              value: _homeOwnershipCtrl.text.isNotEmpty ? _homeOwnershipCtrl.text : null,
+              items: const ['Owner Occupier', 'Mortgage', 'Renting', 'Living with Family', 'Other'],
+              onChanged: (val) {
+                if (val != null) {
+                  setState(() {
+                    _homeOwnershipCtrl.text = val;
+                  });
+                }
+              },
+            ),
             const SizedBox(height: 16),
             DarkTextField(hint: 'Annual Income Range', controller: _annualIncomeCtrl),
             
@@ -1414,6 +1436,52 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
              ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class DarkDropdownField extends StatelessWidget {
+  final String hint;
+  final String? value;
+  final List<String> items;
+  final ValueChanged<String?> onChanged;
+
+  const DarkDropdownField({
+    Key? key,
+    required this.hint,
+    required this.value,
+    required this.items,
+    required this.onChanged,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final currentValue = (value != null && items.contains(value)) ? value : null;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceCard,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF333333)),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: currentValue,
+          hint: Text(hint, style: const TextStyle(color: Color(0xFF888888), fontSize: 14)),
+          isExpanded: true,
+          dropdownColor: const Color(0xFF1E1E1E),
+          icon: const Icon(Icons.keyboard_arrow_down, color: AppColors.primaryGold),
+          style: const TextStyle(color: Colors.white, fontSize: 14),
+          items: items.map((String item) {
+            return DropdownMenuItem<String>(
+              value: item,
+              child: Text(item, style: const TextStyle(color: Colors.white)),
+            );
+          }).toList(),
+          onChanged: onChanged,
+        ),
       ),
     );
   }

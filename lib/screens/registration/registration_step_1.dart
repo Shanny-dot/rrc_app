@@ -118,7 +118,7 @@ class _RegistrationStep1State extends State<RegistrationStep1> {
                       CustomDropdown(
                         label: 'Gender',
                         isRequired: true,
-                        items: const ['Male', 'Female', 'Other', 'Prefer not to say'],
+                        items: const ['Male', 'Female', 'Non-Binary', 'Other', 'Prefer not to say'],
                         value: _selectedGender,
                         onChanged: (val) {
                           setState(() {

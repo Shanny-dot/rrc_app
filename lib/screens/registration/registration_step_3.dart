@@ -143,9 +143,9 @@ class _RegistrationStep3State extends State<RegistrationStep3> {
                       ),
                       const SizedBox(height: 16),
                       CustomDropdown(
-                        label: 'Home Ownership',
+                        label: 'Occupancy / Home Ownership',
                         isRequired: true,
-                        items: const ['Own Outright', 'Mortgage', 'Renting', 'Living with parents', 'Other'],
+                        items: const ['Owner Occupier', 'Mortgage', 'Renting', 'Living with Family', 'Other'],
                         value: _homeOwnership,
                         onChanged: (val) {
                           setState(() {

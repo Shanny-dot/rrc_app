@@ -60,10 +60,10 @@ class ApiService {
     }
   }
 
-  // Safe HTTP request helper with built-in 15-second timeout and exception handling
+  // Safe HTTP request helper with built-in 45-second timeout and exception handling (accommodates Render free tier cold starts)
   Future<http.Response> _safeRequest(Future<http.Response> Function() requestFn) async {
     try {
-      return await requestFn().timeout(const Duration(seconds: 15));
+      return await requestFn().timeout(const Duration(seconds: 45));
     } catch (e) {
       debugPrint("API request error: $e");
       return http.Response(
