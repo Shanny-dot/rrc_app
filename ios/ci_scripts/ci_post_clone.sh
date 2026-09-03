@@ -6,8 +6,10 @@ set -e
 # Navigate to the root directory of the project
 cd "$CI_PRIMARY_REPOSITORY_PATH"
 
-# 1. Clone the Flutter SDK (stable branch)
-git clone https://github.com/flutter/flutter.git --depth 1 -b stable $HOME/flutter
+# 1. Install / Update Flutter SDK
+if [ ! -d "$HOME/flutter" ]; then
+    git clone https://github.com/flutter/flutter.git --depth 1 -b stable $HOME/flutter
+fi
 
 # 2. Add the flutter command to the system PATH
 export PATH="$PATH:$HOME/flutter/bin"
@@ -21,8 +23,8 @@ flutter pub get
 # 5. Generate Generated.xcconfig and .symlinks
 flutter build ios --config-only --no-codesign
 
-# 6. Install project dependencies
+# 6. Install CocoaPods dependencies
 cd ios
-pod install
+pod install --repo-update || pod install
 
 exit 0
