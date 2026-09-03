@@ -1,6 +1,6 @@
 name: rrc_app
 description: RRC App Frontend
-version: 3.0.0+34
+version: 3.0.0+35
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
@@ -26,10 +26,11 @@ dev_dependencies:
   flutter_launcher_icons: ^0.14.1
 
 flutter_launcher_icons:
-  android: true
+  android: "ic_launcher"
   ios: true
   image_path: "assets/images/rrc_logo.png"
   min_sdk_android: 21
+  remove_alpha_ios: true
   adaptive_icon_background: "#000000"
   adaptive_icon_foreground: "assets/images/rrc_logo.png"
 

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import '../theme/app_theme.dart';
 import '../widgets/core_widgets.dart';
 import 'dashboard_screens.dart';
@@ -190,9 +193,104 @@ class _QuickSignUpScreenState extends State<QuickSignUpScreen> {
       setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('App Error: \${e.toString()}')),
+          SnackBar(content: Text('App Error: ${e.toString()}')),
         );
       }
+    }
+  }
+
+  Future<void> _handleSocialLogin(String provider) async {
+    setState(() => _isLoading = true);
+    final apiService = ApiService();
+    try {
+      if (provider == 'google') {
+        final GoogleSignIn googleSignIn = GoogleSignIn(scopes: ['email']);
+        final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+        if (googleUser == null) {
+          setState(() => _isLoading = false);
+          return;
+        }
+        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+        final res = await apiService.socialLogin(
+          provider: 'google',
+          idToken: googleAuth.idToken,
+          accessToken: googleAuth.accessToken,
+        );
+        if (res['success'] == true) {
+          if (mounted) {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => const MainAppScaffold()),
+              (route) => false,
+            );
+          }
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Google Sign-In: ${res["error"]}')),
+            );
+          }
+        }
+      } else if (provider == 'apple') {
+        final credential = await SignInWithApple.getAppleIDCredential(
+          scopes: [
+            AppleIDAuthorizationScopes.email,
+            AppleIDAuthorizationScopes.fullName,
+          ],
+        );
+        final res = await apiService.socialLogin(
+          provider: 'apple',
+          idToken: credential.identityToken,
+        );
+        if (res['success'] == true) {
+          if (mounted) {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => const MainAppScaffold()),
+              (route) => false,
+            );
+          }
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Apple Sign-In: ${res["error"]}')),
+            );
+          }
+        }
+      } else if (provider == 'facebook') {
+        final LoginResult result = await FacebookAuth.instance.login();
+        if (result.status == LoginStatus.success) {
+          final AccessToken accessToken = result.accessToken!;
+          final res = await apiService.socialLogin(
+            provider: 'facebook',
+            accessToken: accessToken.tokenString,
+          );
+          if (res['success'] == true) {
+            if (mounted) {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const MainAppScaffold()),
+                (route) => false,
+              );
+            }
+          } else {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Facebook Sign-In: ${res["error"]}')),
+              );
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Social login error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Social Login Error: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -282,14 +380,7 @@ class _QuickSignUpScreenState extends State<QuickSignUpScreen> {
               const SizedBox(height: 20),
               
               SocialLoginButtons(
-                onSocialSelect: (provider) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Connecting to ${provider.toUpperCase()} Sign-In...'),
-                      backgroundColor: AppColors.primaryGold,
-                    ),
-                  );
-                },
+                onSocialSelect: _handleSocialLogin,
               ),
 
               const SizedBox(height: 16),
@@ -628,18 +719,23 @@ class _LoginScreenState extends State<LoginScreen> {
                     final api = ApiService();
                     final res = await api.forgotPassword(resetEmailCtrl.text.trim());
                     setDialogState(() => isResetting = false);
-
-                    if (dialogContext.mounted) {
-                      Navigator.of(dialogContext).pop();
-                    }
-
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(res['message'] ?? res['error'] ?? 'Reset instructions sent'),
-                          backgroundColor: res['success'] == true ? AppColors.success : AppColors.error,
-                        ),
-                      );
+                    if (res['success'] == true) {
+                      if (mounted) {
+                        Navigator.of(dialogContext).pop();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Password reset link sent! Please check your email inbox.'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      }
+                    } else {
+                      setDialogState(() => isResetting = false);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(res['error'] ?? 'Failed to send reset link')),
+                        );
+                      }
                     }
                   },
                   child: isResetting 
@@ -652,6 +748,101 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       },
     );
+  }
+
+  Future<void> _handleSocialLogin(String provider) async {
+    setState(() => _isLoading = true);
+    final apiService = ApiService();
+    try {
+      if (provider == 'google') {
+        final GoogleSignIn googleSignIn = GoogleSignIn(scopes: ['email']);
+        final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+        if (googleUser == null) {
+          setState(() => _isLoading = false);
+          return;
+        }
+        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+        final res = await apiService.socialLogin(
+          provider: 'google',
+          idToken: googleAuth.idToken,
+          accessToken: googleAuth.accessToken,
+        );
+        if (res['success'] == true) {
+          if (mounted) {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => const MainAppScaffold()),
+              (route) => false,
+            );
+          }
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Google Sign-In: ${res["error"]}')),
+            );
+          }
+        }
+      } else if (provider == 'apple') {
+        final credential = await SignInWithApple.getAppleIDCredential(
+          scopes: [
+            AppleIDAuthorizationScopes.email,
+            AppleIDAuthorizationScopes.fullName,
+          ],
+        );
+        final res = await apiService.socialLogin(
+          provider: 'apple',
+          idToken: credential.identityToken,
+        );
+        if (res['success'] == true) {
+          if (mounted) {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => const MainAppScaffold()),
+              (route) => false,
+            );
+          }
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Apple Sign-In: ${res["error"]}')),
+            );
+          }
+        }
+      } else if (provider == 'facebook') {
+        final LoginResult result = await FacebookAuth.instance.login();
+        if (result.status == LoginStatus.success) {
+          final AccessToken accessToken = result.accessToken!;
+          final res = await apiService.socialLogin(
+            provider: 'facebook',
+            accessToken: accessToken.tokenString,
+          );
+          if (res['success'] == true) {
+            if (mounted) {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const MainAppScaffold()),
+                (route) => false,
+              );
+            }
+          } else {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Facebook Sign-In: ${res["error"]}')),
+              );
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Social login error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Social Login Error: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _handleLogin() async {
@@ -734,14 +925,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 20),
 
               SocialLoginButtons(
-                onSocialSelect: (provider) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Connecting to ${provider.toUpperCase()} Sign-In...'),
-                      backgroundColor: AppColors.primaryGold,
-                    ),
-                  );
-                },
+                onSocialSelect: _handleSocialLogin,
               ),
 
               const SizedBox(height: 16),

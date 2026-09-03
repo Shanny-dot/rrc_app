@@ -110,6 +110,34 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> socialLogin({
+    required String provider,
+    String? idToken,
+    String? accessToken,
+    String? rawNonce,
+  }) async {
+    final response = await _safeRequest(() => http.post(
+      Uri.parse('$baseUrl/api/v1/auth/social-login'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'provider': provider,
+        'id_token': idToken,
+        'access_token': accessToken,
+        'raw_nonce': rawNonce,
+      }),
+    ));
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      if (data['access_token'] != null) {
+        await saveToken(data['access_token']);
+      }
+      return {'success': true, 'data': data};
+    } else {
+      return {'success': false, 'error': data['detail'] ?? 'Social login failed'};
+    }
+  }
+
   Future<Map<String, dynamic>> forgotPassword(String email) async {
     final response = await _safeRequest(() => http.post(
       Uri.parse('$baseUrl/api/v1/auth/forgot-password'),
