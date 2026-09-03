@@ -17,6 +17,9 @@ fi
 # 2. Add the flutter command to the system PATH
 export PATH="$PATH:$FLUTTER_DIR/bin"
 
+# 3. Disable Swift Package Manager (use CocoaPods)
+flutter config --no-enable-swift-package-manager
+
 echo "Flutter SDK ready:"
 flutter --version
 
