@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
@@ -45,9 +46,9 @@ class _SplashScreenState extends State<SplashScreen> {
        debugPrint("Auth check failed or timed out: $e");
      }
      
-     // Fallback to Quick Sign Up if no token, token is deeply expired, or network error occurs
+     // Fallback directly to Login screen so Apple reviewers and users can sign in immediately
      if (mounted) {
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const QuickSignUpScreen()));
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
      }
   }
 
@@ -204,6 +205,15 @@ class _QuickSignUpScreenState extends State<QuickSignUpScreen> {
     final apiService = ApiService();
     try {
       if (provider == 'google') {
+        if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Please use Sign in with Apple or Email to continue on iOS.')),
+            );
+          }
+          setState(() => _isLoading = false);
+          return;
+        }
         final GoogleSignIn googleSignIn = GoogleSignIn(scopes: ['email']);
         final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
         if (googleUser == null) {
@@ -755,6 +765,15 @@ class _LoginScreenState extends State<LoginScreen> {
     final apiService = ApiService();
     try {
       if (provider == 'google') {
+        if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Please use Sign in with Apple or Email to continue on iOS.')),
+            );
+          }
+          setState(() => _isLoading = false);
+          return;
+        }
         final GoogleSignIn googleSignIn = GoogleSignIn(scopes: ['email']);
         final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
         if (googleUser == null) {
@@ -846,7 +865,10 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleLogin() async {
-    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+    final email = _emailController.text.trim().toLowerCase();
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter email and password')),
       );
@@ -857,7 +879,7 @@ class _LoginScreenState extends State<LoginScreen> {
     
     try {
       final api = ApiService();
-      final result = await api.login(_emailController.text.trim(), _passwordController.text.trim());
+      final result = await api.login(email, password);
 
       if (mounted) setState(() => _isLoading = false);
 
@@ -898,7 +920,29 @@ class _LoginScreenState extends State<LoginScreen> {
             children: [
               Text('Welcome Back', style: AppTextStyles.h2),
               const SizedBox(height: 8),
-              Text('Enter your credentials to continue.', style: AppTextStyles.bodyMedium),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Enter your credentials to continue.', style: AppTextStyles.bodyMedium),
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _emailController.text = 'shantanufadnavis5@gmail.com';
+                        _passwordController.text = 'Shaan@1109';
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryGold.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.primaryGold.withOpacity(0.4)),
+                      ),
+                      child: const Text('Demo Account', style: TextStyle(color: AppColors.primaryGold, fontSize: 11, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 32),
               
               DarkTextField(hint: 'Email Address', keyboardType: TextInputType.emailAddress, controller: _emailController),
@@ -934,14 +978,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   text: "Don't have an account? Sign Up",
                   isTextLink: true,
                   onPressed: () {
-                    if (Navigator.canPop(context)) {
-                      Navigator.pop(context);
-                    } else {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (_) => const QuickSignUpScreen()),
-                      );
-                    }
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const QuickSignUpScreen()),
+                    );
                   },
                 ),
               ),
@@ -961,6 +1001,8 @@ class SocialLoginButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+
     return Column(
       children: [
         Row(
@@ -974,31 +1016,54 @@ class SocialLoginButtons extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 16),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Google Button
-            _buildSocialIcon(
-              icon: Icons.g_mobiledata_rounded,
-              label: 'Google',
-              onTap: () => onSocialSelect('google'),
+        if (isIOS) ...[
+          // Prominent Apple Sign-In button adhering to Apple HIG on iOS/iPadOS
+          GestureDetector(
+            onTap: () => onSocialSelect('apple'),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(AppDimens.radiusButton),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.apple, color: Colors.black, size: 22),
+                  SizedBox(width: 8),
+                  Text(
+                    'Sign in with Apple',
+                    style: TextStyle(color: Colors.black, fontSize: 15, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(width: 12),
-            // Apple Button
-            _buildSocialIcon(
-              icon: Icons.apple,
-              label: 'Apple',
-              onTap: () => onSocialSelect('apple'),
-            ),
-            const SizedBox(width: 12),
-            // Facebook Button
-            _buildSocialIcon(
-              icon: Icons.facebook,
-              label: 'Facebook',
-              onTap: () => onSocialSelect('facebook'),
-            ),
-          ],
-        ),
+          ),
+        ] else ...[
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildSocialIcon(
+                icon: Icons.g_mobiledata_rounded,
+                label: 'Google',
+                onTap: () => onSocialSelect('google'),
+              ),
+              const SizedBox(width: 12),
+              _buildSocialIcon(
+                icon: Icons.apple,
+                label: 'Apple',
+                onTap: () => onSocialSelect('apple'),
+              ),
+              const SizedBox(width: 12),
+              _buildSocialIcon(
+                icon: Icons.facebook,
+                label: 'Facebook',
+                onTap: () => onSocialSelect('facebook'),
+              ),
+            ],
+          ),
+        ],
       ],
     );
   }

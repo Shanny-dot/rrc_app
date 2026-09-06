@@ -88,6 +88,11 @@ class DarkTextField extends StatelessWidget {
       keyboardType: keyboardType,
       textAlign: textAlign,
       obscureText: obscureText,
+      textCapitalization: (keyboardType == TextInputType.emailAddress || obscureText)
+          ? TextCapitalization.none
+          : TextCapitalization.words,
+      autocorrect: keyboardType != TextInputType.emailAddress && !obscureText,
+      enableSuggestions: keyboardType != TextInputType.emailAddress && !obscureText,
       onChanged: onChanged,
       style: const TextStyle(color: AppColors.textPrimary),
       decoration: InputDecoration(
