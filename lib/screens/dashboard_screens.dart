@@ -75,6 +75,10 @@ class _DashboardTabState extends State<DashboardTab> {
   
   Map<String, dynamic>? _userProfile;
   List<dynamic> _recentActivity = [];
+  Map<String, String> _appContent = {};
+
+  // Content defaults — used if API unavailable
+  String _c(String key, String fallback) => _appContent[key]?.isNotEmpty == true ? _appContent[key]! : fallback;
 
   @override
   void initState() {
@@ -99,6 +103,12 @@ class _DashboardTabState extends State<DashboardTab> {
       if (activityResult['success'] && activityResult['data'] is List) {
         _recentActivity = (activityResult['data'] as List).take(3).toList();
       }
+
+      // Fetch app content (non-blocking, graceful fallback)
+      try {
+        final content = await _apiService.getAppContent();
+        if (content.isNotEmpty) _appContent = content;
+      } catch (_) {}
     } catch (e) {
       debugPrint("Dashboard Error: \$e");
     } finally {
@@ -197,15 +207,15 @@ class _DashboardTabState extends State<DashboardTab> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Total Points', style: AppTextStyles.labelMedium),
+                  Text(_c('hero_title', 'Total Points'), style: AppTextStyles.labelMedium),
                   const SizedBox(height: 8),
                   Text('$points', style: AppTextStyles.h1.copyWith(color: AppColors.primaryGold, fontSize: 40)),
                   const SizedBox(height: 24),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Gold Tier', style: AppTextStyles.labelLarge),
-                      Text('1000 to Platinum', style: AppTextStyles.labelSmall),
+                      Text(_c('tier_gold_label', 'Gold Tier'), style: AppTextStyles.labelLarge),
+                      Text(_c('tier_platinum_threshold', '1000 to Platinum'), style: AppTextStyles.labelSmall),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -224,11 +234,11 @@ class _DashboardTabState extends State<DashboardTab> {
             // Quick Actions
             Row(
               children: [
-                _buildQuickAction(Icons.person_add_rounded, 'Refer Friend', () => widget.onNavigateToTab(1)),
+                _buildQuickAction(Icons.person_add_rounded, _c('quick_action_refer', 'Refer Friend'), () => widget.onNavigateToTab(1)),
                 const SizedBox(width: 12),
-                _buildQuickAction(Icons.card_giftcard_rounded, 'Redeem', () => widget.onNavigateToTab(2)),
+                _buildQuickAction(Icons.card_giftcard_rounded, _c('quick_action_redeem', 'Redeem'), () => widget.onNavigateToTab(2)),
                 const SizedBox(width: 12),
-                _buildQuickAction(Icons.event_rounded, 'Events', () => widget.onNavigateToTab(3)),
+                _buildQuickAction(Icons.event_rounded, _c('quick_action_events', 'Events'), () => widget.onNavigateToTab(3)),
               ],
             ),
             const SizedBox(height: 32),

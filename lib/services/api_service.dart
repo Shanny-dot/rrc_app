@@ -377,4 +377,23 @@ class ApiService {
       return {'success': false, 'error': errMsg};
     }
   }
+
+  /// Fetch app content key-value pairs from the backend (no auth required).
+  /// Returns a Map<String, String> with all content blocks.
+  /// Falls back to empty map on failure — callers should use hardcoded defaults.
+  Future<Map<String, String>> getAppContent() async {
+    try {
+      final response = await _safeRequest(() => http.get(
+        Uri.parse('$baseUrl/api/v1/content'),
+        headers: {'Content-Type': 'application/json'},
+      ));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return data.map((k, v) => MapEntry(k, v?.toString() ?? ''));
+      }
+    } catch (e) {
+      debugPrint('Content fetch error: $e');
+    }
+    return {};
+  }
 }
