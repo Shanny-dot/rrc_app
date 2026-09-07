@@ -124,7 +124,8 @@ class QuickSignUpScreen extends StatefulWidget {
 }
 
 class _QuickSignUpScreenState extends State<QuickSignUpScreen> {
-  final _nameController = TextEditingController();
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _mobileController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -145,7 +146,8 @@ class _QuickSignUpScreenState extends State<QuickSignUpScreen> {
 
   @override
   void dispose() {
-    _nameController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
     _emailController.dispose();
     _mobileController.dispose();
     _passwordController.dispose();
@@ -153,7 +155,10 @@ class _QuickSignUpScreenState extends State<QuickSignUpScreen> {
   }
 
   Future<void> _handleSignup() async {
-    if (_nameController.text.isEmpty || _emailController.text.isEmpty || _mobileController.text.isEmpty) {
+    if (_firstNameController.text.trim().isEmpty ||
+        _lastNameController.text.trim().isEmpty ||
+        _emailController.text.isEmpty ||
+        _mobileController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill all fields')),
       );
@@ -162,9 +167,12 @@ class _QuickSignUpScreenState extends State<QuickSignUpScreen> {
 
     setState(() => _isLoading = true);
 
+    // Combine first + last name — no middle name
+    final fullName = '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}';
+
     // Prepare demo data that satisfies the DB schema
     final payload = {
-      'full_name': _nameController.text.trim(),
+      'full_name': fullName,
       'email': _emailController.text.trim(),
       'mobile': _fullMobile,   // already E.164 — e.g. +61412345678
       'password': _passwordController.text.trim(),
@@ -319,7 +327,18 @@ class _QuickSignUpScreenState extends State<QuickSignUpScreen> {
               Text('Enter your details to request access.', style: AppTextStyles.bodyMedium),
               const SizedBox(height: 32),
               
-              DarkTextField(hint: 'Full Name', controller: _nameController),
+              // First Name + Last Name (side by side, no middle name)
+              Row(
+                children: [
+                  Expanded(
+                    child: DarkTextField(hint: 'First Name', controller: _firstNameController),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: DarkTextField(hint: 'Last Name', controller: _lastNameController),
+                  ),
+                ],
+              ),
               const SizedBox(height: AppDimens.sectionGap),
               DarkTextField(hint: 'Email Address', keyboardType: TextInputType.emailAddress, controller: _emailController),
               const SizedBox(height: AppDimens.sectionGap),
