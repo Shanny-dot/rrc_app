@@ -194,7 +194,7 @@ class ApiService {
   }
 
   // Submit Referral
-  Future<Map<String, dynamic>> submitReferral(Map<String, String> referralData) async {
+  Future<Map<String, dynamic>> submitReferral(Map<String, dynamic> referralData) async {
     final headers = await _getHeaders();
     final response = await _safeRequest(() => http.post(
       Uri.parse('$baseUrl/api/v1/referrals/'),
@@ -396,4 +396,76 @@ class ApiService {
     }
     return {};
   }
+
+  // ---------------------------------------------------------------------------
+  // UX refresh endpoints
+  // ---------------------------------------------------------------------------
+
+  String _errorFrom(http.Response response, String fallback) {
+    try {
+      final data = jsonDecode(response.body);
+      final detail = data is Map ? data['detail'] : null;
+      if (detail is String && detail.isNotEmpty) return detail;
+      if (detail is List && detail.isNotEmpty) {
+        final first = detail.first;
+        if (first is Map && first['msg'] != null) return first['msg'].toString();
+      }
+    } catch (_) {}
+    return fallback;
+  }
+
+  Future<Map<String, dynamic>> _getJson(String path, String fallbackError) async {
+    final headers = await _getHeaders();
+    final response = await _safeRequest(() => http.get(Uri.parse('$baseUrl$path'), headers: headers));
+    if (response.statusCode == 200) {
+      return {'success': true, 'data': jsonDecode(response.body)};
+    }
+    return {'success': false, 'error': _errorFrom(response, fallbackError)};
+  }
+
+  Future<Map<String, dynamic>> _sendJson(String method, String path, String fallbackError, {Object? body}) async {
+    final headers = await _getHeaders();
+    final uri = Uri.parse('$baseUrl$path');
+    final encoded = body == null ? null : jsonEncode(body);
+    final response = await _safeRequest(() {
+      switch (method) {
+        case 'DELETE':
+          return http.delete(uri, headers: headers, body: encoded);
+        case 'PUT':
+          return http.put(uri, headers: headers, body: encoded);
+        default:
+          return http.post(uri, headers: headers, body: encoded);
+      }
+    });
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return {'success': true, 'data': response.body.isEmpty ? null : jsonDecode(response.body)};
+    }
+    return {'success': false, 'error': _errorFrom(response, fallbackError)};
+  }
+
+  /// The member's active RSVPs: [{event_id, attended, rsvp_at}]
+  Future<Map<String, dynamic>> getMyRsvps() => _getJson('/api/v1/events/my-rsvps', 'Failed to load your RSVPs');
+
+  Future<Map<String, dynamic>> cancelRsvp(String eventId) =>
+      _sendJson('DELETE', '/api/v1/events/$eventId/rsvp', 'Failed to cancel RSVP');
+
+  /// {basis, tiers: [{name, min_points, benefits: [..]}]}
+  Future<Map<String, dynamic>> getTiers() => _getJson('/api/v1/tiers', 'Failed to load tiers');
+
+  /// [{id, kind, title, body, at}] newest first
+  Future<Map<String, dynamic>> getNotifications() => _getJson('/api/v1/notifications', 'Failed to load updates');
+
+  Future<Map<String, dynamic>> getReward(String rewardId) => _getJson('/api/v1/rewards/$rewardId', 'Failed to load reward');
+
+  /// List of reward IDs saved to the wish list
+  Future<Map<String, dynamic>> getWishlist() => _getJson('/api/v1/rewards/wishlist', 'Failed to load wish list');
+
+  Future<Map<String, dynamic>> addToWishlist(String rewardId) =>
+      _sendJson('POST', '/api/v1/rewards/$rewardId/wishlist', 'Failed to save to wish list');
+
+  Future<Map<String, dynamic>> removeFromWishlist(String rewardId) =>
+      _sendJson('DELETE', '/api/v1/rewards/$rewardId/wishlist', 'Failed to remove from wish list');
+
+  /// {points_earned, points_per_referral, referral_code, invite_link, inviter_name}
+  Future<Map<String, dynamic>> getReferralSummary() => _getJson('/api/v1/referrals/summary', 'Failed to load referral summary');
 }

@@ -7,6 +7,7 @@ import '../theme/app_theme.dart';
 import '../widgets/core_widgets.dart';
 import 'dashboard_screens.dart';
 import '../services/api_service.dart';
+import '../services/version_gate.dart';
 
 // ----------------- Auth flow ----------------- //
 
@@ -26,8 +27,18 @@ class _SplashScreenState extends State<SplashScreen> {
   }
   
   Future<void> _checkAuthStatus() async {
+     // Version check runs during the splash delay; it never blocks if the server is slow.
+     final gateFuture = VersionGate.check();
      await Future.delayed(const Duration(seconds: 2));
-     
+     final gate = await gateFuture;
+     if (!mounted) return;
+     if (gate.forceUpdate) {
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => UpdateRequiredScreen(gate: gate)));
+        return;
+     }
+     if (gate.updateAvailable) await _maybePromptUpdate(gate);
+     if (!mounted) return;
+
      try {
        final api = ApiService();
        final hasToken = await api.isLoggedIn();
@@ -50,6 +61,18 @@ class _SplashScreenState extends State<SplashScreen> {
      if (mounted) {
         Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
      }
+  }
+
+  /// Optional update prompt, shown at most once every 3 days.
+  Future<void> _maybePromptUpdate(VersionGate gate) async {
+     const key = 'update_prompt_shown_at';
+     final api = ApiService();
+     try {
+        final last = DateTime.tryParse(await api.storage.read(key: key) ?? '');
+        if (last != null && DateTime.now().difference(last).inDays < 3) return;
+        await api.storage.write(key: key, value: DateTime.now().toIso8601String());
+     } catch (_) {}
+     if (mounted) await gate.showOptionalPrompt(context);
   }
 
   @override
