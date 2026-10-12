@@ -34,6 +34,15 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        manifestPlaceholders["appLabel"] = "Reliiance"
+    }
+
+    // Test builds (flutter build ... --android-project-arg=rrcTestBuild=true) install next to
+    // the store app as "Reliiance TEST" instead of replacing it. Store builds are unaffected.
+    if (project.hasProperty("rrcTestBuild")) {
+        defaultConfig.applicationIdSuffix = ".test"
+        defaultConfig.versionNameSuffix = "-test"
+        defaultConfig.manifestPlaceholders["appLabel"] = "Reliiance TEST"
     }
 
     signingConfigs {

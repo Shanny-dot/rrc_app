@@ -7,6 +7,9 @@ on:
     branches: ["release/**"]
   workflow_dispatch:
 
+permissions:
+  contents: write   # lets the job publish the test APK to the test-builds branch
+
 jobs:
   check:
     runs-on: ubuntu-24.04
@@ -42,10 +45,27 @@ jobs:
           set -o pipefail
           flutter test 2>&1 | tee step.log
 
-      - name: Build test APK (debug-signed, for testing only)
+      - name: Build test APK (installs next to the store app as "Reliiance TEST")
         run: |
           set -o pipefail
-          flutter build apk --debug 2>&1 | tee step.log
+          flutter build apk --release --split-per-abi --android-project-arg=rrcTestBuild=true 2>&1 | tee step.log
+
+      # Publish the APKs to the test-builds branch (one commit per build, previous builds replaced)
+      - name: Publish test APK
+        run: |
+          set -e
+          short=$(git rev-parse --short HEAD)
+          ver=$(grep '^version:' pubspec.yaml | awk '{print $2}')
+          mkdir -p /tmp/out
+          for abi in arm64-v8a armeabi-v7a; do
+            cp build/app/outputs/flutter-apk/app-$abi-release.apk /tmp/out/reliiance-test-$ver-$short-$abi.apk
+          done
+          printf 'Built from %s (%s) on %s\nInstall the arm64-v8a file on almost all phones made since 2017.\n' "$GITHUB_REF_NAME" "$short" "$(date -u +%FT%TZ)" > /tmp/out/README.txt
+          cd /tmp/out
+          git init -q -b test-builds
+          git -c user.name=github-actions -c user.email=actions@github.com add -A
+          git -c user.name=github-actions -c user.email=actions@github.com commit -qm "Test APK $ver ($short)"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" test-builds
 
       # If any step fails, publish the end of its output as an annotation on the commit,
       # so the error can be read without opening the Actions log.
@@ -59,5 +79,5 @@ jobs:
         if: success()
         with:
           name: rrc-app-test-apk
-          path: build/app/outputs/flutter-apk/app-debug.apk
+          path: build/app/outputs/flutter-apk/*.apk
           retention-days: 14
