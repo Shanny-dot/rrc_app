@@ -1,0 +1,53 @@
+name: Flutter check & test build
+
+# Runs on every push to the 3.1 release branch (and can be started by hand).
+# Checks the code compiles cleanly and builds an Android APK for testing on a phone.
+on:
+  push:
+    branches: ["release/**"]
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Flutter version
+        run: flutter --version
+
+      - name: Get packages
+        run: flutter pub get
+
+      - name: Analyze (errors fail the build; warnings are reported)
+        run: |
+          set -o pipefail
+          flutter analyze --no-fatal-infos --no-fatal-warnings 2>&1 | tee analyze.txt
+          # Turn each issue into a GitHub annotation so it shows on the commit
+          grep -E "^\s*(error|warning) •" analyze.txt | while IFS='•' read -r level msg loc code; do
+            file=$(echo "$loc" | awk -F: '{print $1}' | xargs); line=$(echo "$loc" | awk -F: '{print $2}')
+            lvl=$(echo "$level" | xargs); [ "$lvl" = "warning" ] && t=warning || t=error
+            echo "::$t file=$file,line=$line::$(echo "$msg" | xargs) ($(echo "$code" | xargs))"
+          done || true
+          echo '## flutter analyze' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"; tail -n 200 analyze.txt >> "$GITHUB_STEP_SUMMARY"; echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build test APK (debug-signed, for testing only)
+        run: flutter build apk --debug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rrc-app-test-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 14
