@@ -8,6 +8,14 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Public Google/Facebook sign-in IDs, shared with the Dart code (assets/config/social.json).
+@Suppress("UNCHECKED_CAST")
+val socialConfig: Map<String, Any?> = run {
+    val f = rootProject.file("../assets/config/social.json")
+    if (f.exists()) groovy.json.JsonSlurper().parse(f) as Map<String, Any?> else emptyMap()
+}
+fun social(key: String): String = (socialConfig[key] as? String)?.trim() ?: ""
+
 val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("key.properties")
 if (keystorePropertiesFile.exists()) {
@@ -18,6 +26,10 @@ android {
     namespace = "com.rrc.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
+
+    buildFeatures {
+        resValues = true
+    }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -35,6 +47,11 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         manifestPlaceholders["appLabel"] = "Reliiance"
+        // Facebook SDK reads these; empty until a Meta app is set up (the app then hides nothing,
+        // it just shows "not set up yet" when the Facebook button is tapped).
+        resValue("string", "facebook_app_id", social("facebook_app_id"))
+        resValue("string", "facebook_client_token", social("facebook_client_token"))
+        resValue("string", "fb_login_protocol_scheme", "fb" + social("facebook_app_id"))
     }
 
     // Test builds (flutter build ... --android-project-arg=rrcTestBuild=true) install next to
@@ -46,6 +63,14 @@ android {
     }
 
     signingConfigs {
+        // Fixed key for test builds only (package com.rrc.app.test), so Google and Facebook
+        // can recognise them. Never used for the store app.
+        create("test") {
+            storeFile = file("test-signing.jks")
+            storePassword = "rrctest123"
+            keyAlias = "rrctest"
+            keyPassword = "rrctest123"
+        }
         create("release") {
             keyAlias = keystoreProperties.getProperty("keyAlias")
             keyPassword = keystoreProperties.getProperty("keyPassword")
@@ -56,7 +81,9 @@ android {
 
     buildTypes {
         release {
-            signingConfig = if (keystorePropertiesFile.exists()) {
+            signingConfig = if (project.hasProperty("rrcTestBuild")) {
+                signingConfigs.getByName("test")
+            } else if (keystorePropertiesFile.exists()) {
                 signingConfigs.getByName("release")
             } else {
                 signingConfigs.getByName("debug")

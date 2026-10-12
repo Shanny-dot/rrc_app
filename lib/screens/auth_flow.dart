@@ -8,6 +8,7 @@ import '../widgets/core_widgets.dart';
 import 'dashboard_screens.dart';
 import '../services/api_service.dart';
 import '../services/version_gate.dart';
+import '../services/social_config.dart';
 
 // ----------------- Auth flow ----------------- //
 
@@ -245,7 +246,16 @@ class _QuickSignUpScreenState extends State<QuickSignUpScreen> {
           setState(() => _isLoading = false);
           return;
         }
-        final GoogleSignIn googleSignIn = GoogleSignIn(scopes: ['email']);
+        final social = await SocialConfig.load();
+        if (!social.googleReady) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text(SocialConfig.notReadyMessage)));
+          }
+          setState(() => _isLoading = false);
+          return;
+        }
+        // serverClientId (the Web client ID) makes Google return an ID token the backend can verify.
+        final GoogleSignIn googleSignIn = GoogleSignIn(scopes: ['email'], serverClientId: social.googleWebClientId);
         final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
         if (googleUser == null) {
           setState(() => _isLoading = false);
@@ -299,7 +309,15 @@ class _QuickSignUpScreenState extends State<QuickSignUpScreen> {
           }
         }
       } else if (provider == 'facebook') {
-        final LoginResult result = await FacebookAuth.instance.login();
+        final social = await SocialConfig.load();
+        if (!social.facebookReady) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text(SocialConfig.notReadyMessage)));
+          }
+          setState(() => _isLoading = false);
+          return;
+        }
+        final LoginResult result = await FacebookAuth.instance.login(permissions: ['email', 'public_profile']);
         if (result.status == LoginStatus.success) {
           final AccessToken accessToken = result.accessToken!;
           final res = await apiService.socialLogin(
@@ -816,7 +834,16 @@ class _LoginScreenState extends State<LoginScreen> {
           setState(() => _isLoading = false);
           return;
         }
-        final GoogleSignIn googleSignIn = GoogleSignIn(scopes: ['email']);
+        final social = await SocialConfig.load();
+        if (!social.googleReady) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text(SocialConfig.notReadyMessage)));
+          }
+          setState(() => _isLoading = false);
+          return;
+        }
+        // serverClientId (the Web client ID) makes Google return an ID token the backend can verify.
+        final GoogleSignIn googleSignIn = GoogleSignIn(scopes: ['email'], serverClientId: social.googleWebClientId);
         final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
         if (googleUser == null) {
           setState(() => _isLoading = false);
@@ -870,7 +897,15 @@ class _LoginScreenState extends State<LoginScreen> {
           }
         }
       } else if (provider == 'facebook') {
-        final LoginResult result = await FacebookAuth.instance.login();
+        final social = await SocialConfig.load();
+        if (!social.facebookReady) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text(SocialConfig.notReadyMessage)));
+          }
+          setState(() => _isLoading = false);
+          return;
+        }
+        final LoginResult result = await FacebookAuth.instance.login(permissions: ['email', 'public_profile']);
         if (result.status == LoginStatus.success) {
           final AccessToken accessToken = result.accessToken!;
           final res = await apiService.socialLogin(
