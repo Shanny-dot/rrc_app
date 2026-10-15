@@ -3,9 +3,12 @@ import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
 import '../../services/app_lock.dart';
+import '../../services/push_alerts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../widgets/loading.dart';
 import '../../widgets/ui_kit.dart';
 import 'help_screen.dart';
+import 'loan_checkin_screen.dart';
 import 'profile_screen.dart';
 import 'welcome_tour.dart';
 
@@ -27,6 +30,7 @@ class _DashboardTabState extends State<DashboardTab> {
   final ApiService _api = ApiService();
   bool _isLoading = true;
   ProgramContact _contact = const ProgramContact();
+  Map<String, dynamic>? _checkin;
   Map<String, dynamic>? _profile;
   List<dynamic> _activity = [];
   bool _hasUnread = false;
@@ -48,8 +52,12 @@ class _DashboardTabState extends State<DashboardTab> {
       }
       if (me['success']) _profile = me['data'];
 
-      final results = await Future.wait([_api.getTransactions(), _api.getNotifications(), ProgramContact.load()]);
+      final results = await Future.wait([_api.getTransactions(), _api.getNotifications(), ProgramContact.load(), _api.getLoanCheckin()]);
       _contact = results[2] as ProgramContact;
+      final checkin = results[3] as Map<String, dynamic>;
+      _checkin = checkin['success'] == true && checkin['data'] is Map && checkin['data']['due'] == true
+          ? Map<String, dynamic>.from(checkin['data'])
+          : null;
       final tx = results[0] as Map<String, dynamic>;
       if (tx['success'] && tx['data'] is List) _activity = tx['data'];
       final notes = results[1] as Map<String, dynamic>;
@@ -68,6 +76,9 @@ class _DashboardTabState extends State<DashboardTab> {
       _onboardingChecked = true;
       await WelcomeTourScreen.showIfNew(context, _profile);
       if (mounted) await AppLock.offerOnce(context);
+      await PushAlerts.register();
+      final launchAlert = PushAlerts.takeLaunchAlert();
+      if (launchAlert != null && mounted) openAlert(context, launchAlert);
     }
   }
 
@@ -108,6 +119,7 @@ class _DashboardTabState extends State<DashboardTab> {
               _header(initial, firstName),
               const SizedBox(height: 20),
               if (!profileComplete) ...[_profileBanner(), const SizedBox(height: 16)],
+              if (_checkin != null) ...[_loanCheckinCard(), const SizedBox(height: 16)],
               _pointsCard(points, tier),
               const SizedBox(height: 16),
               Row(children: [
@@ -198,6 +210,35 @@ class _DashboardTabState extends State<DashboardTab> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _loanCheckinCard() {
+    return GestureDetector(
+      onTap: () async {
+        await Navigator.push(context, MaterialPageRoute(builder: (_) => LoanCheckinScreen(message: _checkin?['message']?.toString())));
+        _load();
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: UiColors.goldBg,
+          borderRadius: BorderRadius.circular(AppDimens.radiusCard),
+          border: Border.all(color: AppColors.primaryGold.withValues(alpha: 0.4)),
+        ),
+        child: Row(children: [
+          const Icon(Icons.home_work_outlined, color: AppColors.primaryGold, size: 26),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Is your loan still competitive?', style: AppTextStyles.labelLarge.copyWith(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 2),
+              Text('Request a free review with your broker', style: AppTextStyles.labelSmall),
+            ]),
+          ),
+          const Icon(Icons.arrow_forward_rounded, color: AppColors.primaryGold),
+        ]),
+      ),
     );
   }
 
@@ -453,6 +494,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         return Icons.people_outline_rounded;
       case 'event':
         return Icons.calendar_today_outlined;
+      case 'loan':
+        return Icons.home_work_outlined;
       default:
         return Icons.star_border_rounded;
     }
@@ -478,7 +521,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       separatorBuilder: (_, __) => const SizedBox(height: 10),
                       itemBuilder: (_, i) {
                         final n = _items[i];
-                        return Container(
+                        final body = (n['body'] ?? '').toString();
+                        final links = _linksIn(body);
+                        final text = body.split('\n').where((l) => !links.any((k) => l.endsWith(k.$2))).join('\n').trim();
+                        final isCheckin = n['type'] == 'loan_checkin';
+                        return GestureDetector(
+                          onTap: isCheckin
+                              ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => LoanCheckinScreen(message: body)))
+                              : null,
+                          child: Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(color: AppColors.surfaceCard, borderRadius: BorderRadius.circular(AppDimens.radiusCard)),
                           child: Row(
@@ -495,10 +546,22 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text((n['title'] ?? '').toString(), style: AppTextStyles.labelLarge.copyWith(fontWeight: FontWeight.w600)),
-                                    if ((n['body'] ?? '').toString().isNotEmpty) ...[
+                                    if (text.isNotEmpty) ...[
                                       const SizedBox(height: 4),
-                                      Text(n['body'].toString(), style: AppTextStyles.bodyMedium),
+                                      Text(text, style: AppTextStyles.bodyMedium),
                                     ],
+                                    for (final link in links)
+                                      TextButton.icon(
+                                        style: TextButton.styleFrom(padding: EdgeInsets.zero, foregroundColor: AppColors.primaryGold),
+                                        onPressed: () => launchUrl(Uri.parse(link.$2), mode: LaunchMode.externalApplication),
+                                        icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                                        label: Text(link.$1),
+                                      ),
+                                    if (isCheckin)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 6),
+                                        child: Text('Request a review →', style: AppTextStyles.labelMedium.copyWith(color: AppColors.primaryGold)),
+                                      ),
                                     const SizedBox(height: 6),
                                     Text(Fmt.relative(Fmt.parse(n['at'])), style: AppTextStyles.labelSmall.copyWith(color: UiColors.muted)),
                                   ],
@@ -506,12 +569,19 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                               ),
                             ],
                           ),
+                        ),
                         );
                       },
                     ),
             ),
     );
   }
+
+  /// "Slides: https://…" lines in event thank-yous become link buttons.
+  static List<(String, String)> _linksIn(String body) => RegExp(r'^(Slides|Recording|More information): (https?://\S+)$', multiLine: true)
+      .allMatches(body)
+      .map((m) => (m.group(1) == 'Recording' ? 'Watch the recording' : m.group(1) == 'Slides' ? 'View the slides' : 'More information', m.group(2)!))
+      .toList();
 }
 
 // ----------------- What do tiers give me? ----------------- //
@@ -600,4 +670,13 @@ class _TiersScreenState extends State<TiersScreen> {
             ),
     );
   }
+}
+
+/// Opens the screen for a tapped phone alert.
+void openAlert(BuildContext context, Map<String, dynamic> data) {
+  final type = (data['type'] ?? '').toString();
+  final route = type == 'loan_checkin'
+      ? MaterialPageRoute(builder: (_) => const LoanCheckinScreen())
+      : MaterialPageRoute(builder: (_) => const NotificationsScreen());
+  Navigator.of(context, rootNavigator: true).push(route);
 }

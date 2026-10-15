@@ -9,6 +9,7 @@ import '../../widgets/ui_kit.dart';
 import '../auth_flow.dart' show LoginScreen;
 import 'feedback_screen.dart';
 import 'help_screen.dart';
+import 'notification_settings_screen.dart';
 
 /// Drop-down options. Placeholder lists until Reliance confirms the official ones —
 /// keep the values in step with the admin website.
@@ -357,6 +358,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             trailing: Switch(value: _lockEnabled, activeThumbColor: AppColors.primaryGold, onChanged: _toggleLock),
                             onTap: () => _toggleLock(!_lockEnabled),
                           ),
+                        _settingsTile(
+                          icon: Icons.notifications_none_rounded,
+                          title: 'Notifications',
+                          subtitle: 'Choose which phone alerts you get',
+                          trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationSettingsScreen())),
+                        ),
                         _settingsTile(
                           icon: Icons.help_outline_rounded,
                           title: 'Help & contact',

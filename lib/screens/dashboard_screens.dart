@@ -20,6 +20,8 @@ export 'redesign/events_tab.dart';
 export 'redesign/profile_screen.dart';
 export 'redesign/help_screen.dart';
 export 'redesign/welcome_tour.dart';
+export 'redesign/loan_checkin_screen.dart';
+export 'redesign/notification_settings_screen.dart';
 
 // ----------------- Main Navigation Layout ----------------- //
 

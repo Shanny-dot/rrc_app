@@ -36,6 +36,9 @@
             <!-- Links are read by app_links; stop Flutter also treating them as page routes -->
             <meta-data android:name="flutter_deeplinking_enabled" android:value="false"/>
         </activity>
+        <!-- Phone alerts (Firebase Cloud Messaging): status-bar icon and colour -->
+        <meta-data android:name="com.google.firebase.messaging.default_notification_icon" android:resource="@drawable/ic_stat_notify"/>
+        <meta-data android:name="com.google.firebase.messaging.default_notification_color" android:resource="@color/notification_gold"/>
         <!-- Facebook sign-in (IDs come from assets/config/social.json via build.gradle.kts) -->
         <meta-data android:name="com.facebook.sdk.ApplicationId" android:value="@string/facebook_app_id"/>
         <meta-data android:name="com.facebook.sdk.ClientToken" android:value="@string/facebook_client_token"/>

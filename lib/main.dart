@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'theme/app_theme.dart';
 import 'screens/auth_flow.dart';
+import 'screens/dashboard_screens.dart' show openAlert;
 import 'services/api_service.dart';
 import 'services/invite_code.dart';
+import 'services/push_alerts.dart';
 
 final _navigatorKey = GlobalKey<NavigatorState>();
 final _messengerKey = GlobalKey<ScaffoldMessengerState>();
@@ -20,6 +22,23 @@ Future<void> main() async {
     } else {
       _navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => const QuickSignUpScreen()));
     }
+  };
+  // Phone alerts: a tap opens the matching screen; alerts that arrive while the app is open
+  // show as a banner.
+  await PushAlerts.init().timeout(const Duration(seconds: 5), onTimeout: () {});
+  PushAlerts.onOpen = (data) {
+    final context = _navigatorKey.currentContext;
+    if (context != null) openAlert(context, data);
+  };
+  PushAlerts.onForeground = (title, body, data) {
+    _messengerKey.currentState?.showSnackBar(SnackBar(
+      content: Text(body.isEmpty ? title : '$title\n$body'),
+      duration: const Duration(seconds: 5),
+      action: SnackBarAction(label: 'View', onPressed: () {
+        final context = _navigatorKey.currentContext;
+        if (context != null) openAlert(context, data);
+      }),
+    ));
   };
   runApp(const RRCApp());
 }

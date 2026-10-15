@@ -491,4 +491,17 @@ class ApiService {
         if (preferredTime != null) 'preferred_time': preferredTime,
         if (note != null && note.isNotEmpty) 'note': note,
       });
+
+  /// Registers this phone for alerts.
+  Future<Map<String, dynamic>> updateFcmToken(String token) =>
+      _sendJson('PUT', '/api/v1/auth/fcm-token', 'Failed to register for alerts', body: {'fcm_token': token});
+
+  /// {points, referrals, rewards, events, expiry, loan}: true = send phone alerts of that kind
+  Future<Map<String, dynamic>> getNotificationPrefs() => _getJson('/api/v1/auth/notification-prefs', 'Failed to load settings');
+
+  Future<Map<String, dynamic>> updateNotificationPrefs(Map<String, bool> prefs) =>
+      _sendJson('PUT', '/api/v1/auth/notification-prefs', 'Failed to save settings', body: prefs);
+
+  /// {due: bool, message?: String} — the yearly "Is your loan still competitive?" check-in
+  Future<Map<String, dynamic>> getLoanCheckin() => _getJson('/api/v1/broker/checkin', 'Failed to load check-in');
 }
