@@ -209,12 +209,10 @@ class _ReferFormScreenState extends State<ReferFormScreen> {
             children: [
               Text('We\'ve added $name to your referrals. A Reliance broker will contact them, '
                   'and you can follow their progress on the Referrals screen.'),
-              if (contact.hasAnyContact) ...[
-                const SizedBox(height: 18),
-                Text('Want to talk it through with your broker?', style: AppTextStyles.labelMedium),
-                const SizedBox(height: 10),
-                BrokerActions(info: contact, emailSubject: 'About my referral of $name'),
-              ],
+              const SizedBox(height: 18),
+              Text('Want to talk it through with your broker?', style: AppTextStyles.labelMedium),
+              const SizedBox(height: 10),
+              BrokerActions(info: contact, emailSubject: 'About my referral of $name'),
             ],
           ),
           actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Done', style: TextStyle(color: AppColors.primaryGold)))],

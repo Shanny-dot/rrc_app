@@ -117,7 +117,8 @@ class _DashboardTabState extends State<DashboardTab> {
                 const SizedBox(width: 12),
                 _quickAction(Icons.calendar_today_outlined, 'Events', () => widget.onNavigateToTab(3)),
               ]),
-              if (_contact.hasAnyContact) ...[const SizedBox(height: 16), BrokerCard(info: _contact)],
+              const SizedBox(height: 16),
+              BrokerCard(info: _contact),
               const SizedBox(height: 28),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,

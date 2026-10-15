@@ -26,6 +26,15 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Personal invite links: reliancerewards://join/<CODE> (handled by app_links) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="reliancerewards" android:host="join"/>
+            </intent-filter>
+            <!-- Links are read by app_links; stop Flutter also treating them as page routes -->
+            <meta-data android:name="flutter_deeplinking_enabled" android:value="false"/>
         </activity>
         <!-- Facebook sign-in (IDs come from assets/config/social.json via build.gradle.kts) -->
         <meta-data android:name="com.facebook.sdk.ApplicationId" android:value="@string/facebook_app_id"/>

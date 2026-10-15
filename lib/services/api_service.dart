@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'invite_code.dart';
 
 class ApiService {
   // Production API URL
@@ -124,6 +125,8 @@ class ApiService {
         'id_token': idToken,
         'access_token': accessToken,
         'raw_nonce': rawNonce,
+        // A friend's invite code links brand-new members; ignored for existing ones.
+        if (InviteCode.current != null) 'referral_code': InviteCode.current,
       }),
     ));
 
@@ -132,6 +135,7 @@ class ApiService {
       if (data['access_token'] != null) {
         await saveToken(data['access_token']);
       }
+      await InviteCode.clear();
       return {'success': true, 'data': data};
     } else {
       return {'success': false, 'error': data['detail'] ?? 'Social login failed'};
@@ -166,6 +170,7 @@ class ApiService {
       if (data['access_token'] != null && data['access_token'] != 'pending_verification') {
         await saveToken(data['access_token']);
       }
+      await InviteCode.clear();
       return {'success': true, 'data': data};
     } else {
       return {'success': false, 'error': data['detail'] ?? 'Registration failed'};
@@ -468,4 +473,22 @@ class ApiService {
 
   /// {points_earned, points_per_referral, referral_code, invite_link, inviter_name}
   Future<Map<String, dynamic>> getReferralSummary() => _getJson('/api/v1/referrals/summary', 'Failed to load referral summary');
+
+  /// "Send feedback" form. category: idea | problem | praise | other
+  Future<Map<String, dynamic>> sendFeedback({required String message, required String category, String? appVersion, String? platform}) =>
+      _sendJson('POST', '/api/v1/feedback', "Couldn't send your feedback", body: {
+        'message': message,
+        'category': category,
+        if (appVersion != null) 'app_version': appVersion,
+        if (platform != null) 'platform': platform,
+      });
+
+  /// Ask the broker to get in touch. kind: call (Book a time) | loan_review
+  Future<Map<String, dynamic>> requestBroker({required String kind, String? preferredDate, String? preferredTime, String? note}) =>
+      _sendJson('POST', '/api/v1/broker/requests', "Couldn't send your request", body: {
+        'kind': kind,
+        if (preferredDate != null) 'preferred_date': preferredDate,
+        if (preferredTime != null) 'preferred_time': preferredTime,
+        if (note != null && note.isNotEmpty) 'note': note,
+      });
 }

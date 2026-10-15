@@ -9,6 +9,7 @@ import 'dashboard_screens.dart';
 import '../services/api_service.dart';
 import '../services/version_gate.dart';
 import '../services/app_lock.dart';
+import '../services/invite_code.dart';
 import '../services/social_config.dart';
 
 // ----------------- Auth flow ----------------- //
@@ -72,9 +73,11 @@ class _SplashScreenState extends State<SplashScreen> {
        debugPrint("Auth check failed or timed out: $e");
      }
      
-     // Fallback directly to Login screen so Apple reviewers and users can sign in immediately
+     // Fallback directly to Login screen so Apple reviewers and users can sign in immediately.
+     // A friend opening their invite link goes straight to sign-up (with the code filled in).
      if (mounted) {
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+        Navigator.pushReplacement(context, MaterialPageRoute(
+            builder: (_) => InviteCode.openedFromLink ? const QuickSignUpScreen() : const LoginScreen()));
      }
   }
 
@@ -167,7 +170,23 @@ class _QuickSignUpScreenState extends State<QuickSignUpScreen> {
   final _emailController = TextEditingController();
   final _mobileController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _referralController = TextEditingController();
   bool _isLoading = false;
+  bool _codeFromInvite = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Fill in the code from the friend's invite link, so they don't have to type it.
+    InviteCode.find().then((code) {
+      if (code != null && mounted && _referralController.text.isEmpty) {
+        setState(() {
+          _referralController.text = code;
+          _codeFromInvite = true;
+        });
+      }
+    });
+  }
 
   // Country code selector — default Australia
   String _countryCode = '+61';
@@ -189,6 +208,7 @@ class _QuickSignUpScreenState extends State<QuickSignUpScreen> {
     _emailController.dispose();
     _mobileController.dispose();
     _passwordController.dispose();
+    _referralController.dispose();
     super.dispose();
   }
 
@@ -214,6 +234,7 @@ class _QuickSignUpScreenState extends State<QuickSignUpScreen> {
       'email': _emailController.text.trim(),
       'mobile': _fullMobile,   // already E.164 — e.g. +61412345678
       'password': _passwordController.text.trim(),
+      if (_referralController.text.trim().isNotEmpty) 'referral_code': _referralController.text.trim().toUpperCase(),
     };
 
     try {
@@ -372,7 +393,7 @@ class _QuickSignUpScreenState extends State<QuickSignUpScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Create Account')),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppDimens.pageMargin),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -454,8 +475,18 @@ class _QuickSignUpScreenState extends State<QuickSignUpScreen> {
 
               const SizedBox(height: AppDimens.sectionGap),
               DarkTextField(hint: 'Password', obscureText: true, controller: _passwordController),
-              
-              const Spacer(),
+              const SizedBox(height: AppDimens.sectionGap),
+              DarkTextField(hint: 'Referral code (optional)', controller: _referralController),
+              if (_codeFromInvite) ...[
+                const SizedBox(height: 8),
+                Row(children: [
+                  const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 16),
+                  const SizedBox(width: 6),
+                  Expanded(child: Text('Added from your invite link', style: AppTextStyles.labelSmall.copyWith(color: AppColors.success))),
+                ]),
+              ],
+
+              const SizedBox(height: 32),
               
               GoldButton(
                 text: _isLoading ? 'Creating...' : 'Create Account',
@@ -756,6 +787,13 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // New members can also join with Google/Apple/Facebook from here; have their invite code ready.
+    InviteCode.find();
+  }
 
   void _showForgotPasswordDialog() {
     final resetEmailCtrl = TextEditingController(text: _emailController.text.trim());

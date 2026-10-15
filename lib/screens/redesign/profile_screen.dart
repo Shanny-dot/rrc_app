@@ -7,6 +7,7 @@ import '../../widgets/core_widgets.dart';
 import '../../widgets/loading.dart';
 import '../../widgets/ui_kit.dart';
 import '../auth_flow.dart' show LoginScreen;
+import 'feedback_screen.dart';
 import 'help_screen.dart';
 
 /// Drop-down options. Placeholder lists until Reliance confirms the official ones —
@@ -362,6 +363,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           subtitle: 'Common questions, program terms and privacy',
                           trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
                           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HelpScreen())),
+                        ),
+                        _settingsTile(
+                          icon: Icons.rate_review_outlined,
+                          title: 'Send feedback',
+                          subtitle: 'Ideas, problems or praise — we read every message',
+                          trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FeedbackScreen())),
                         ),
                       ],
                     ),

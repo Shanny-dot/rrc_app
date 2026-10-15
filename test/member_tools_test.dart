@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:rrc_app/screens/redesign/help_screen.dart';
 import 'package:rrc_app/screens/redesign/welcome_tour.dart';
+import 'package:rrc_app/services/invite_code.dart';
 import 'package:rrc_app/widgets/loading.dart';
 
 // Widget tests for the 3.2 member tools: loading states, welcome tour and broker buttons.
@@ -47,14 +48,29 @@ void main() {
     expect(find.text('open'), findsOneWidget);
   });
 
-  testWidgets('broker buttons only show the contact methods staff filled in', (tester) async {
+  testWidgets('broker card: Book a time always, Call/Email once staff add them', (tester) async {
     await tester.pumpWidget(_app(const BrokerCard(info: ProgramContact())));
-    expect(find.text('Talk to my broker'), findsNothing);
-
-    await tester.pumpWidget(_app(const BrokerCard(info: ProgramContact(phone: '02 9000 0000', bookingUrl: 'https://example.com'))));
     expect(find.text('Talk to my broker'), findsOneWidget);
-    expect(find.text('Call'), findsOneWidget);
     expect(find.text('Book a time'), findsOneWidget);
+    expect(find.text('Call'), findsNothing);
+
+    await tester.pumpWidget(_app(const BrokerCard(info: ProgramContact(phone: '02 9000 0000'))));
+    expect(find.text('Call'), findsOneWidget);
     expect(find.text('Email'), findsNothing);
+
+    // No booking link set: Book a time opens the in-app request sheet.
+    await tester.tap(find.text('Book a time'));
+    await tester.pumpAndSettle();
+    expect(find.text('Request this time'), findsOneWidget);
+    expect(find.text('Morning'), findsOneWidget);
+  });
+
+  test('invite code from links and Google Play referrer', () {
+    expect(InviteCode.codeFromUri(Uri.parse('reliancerewards://join/manoj123')), 'MANOJ123');
+    expect(InviteCode.codeFromUri(Uri.parse('https://rrc-admin.vercel.app/join/ABCD1234')), 'ABCD1234');
+    expect(InviteCode.codeFromUri(Uri.parse('reliancerewards://join/bad!code')), isNull);
+    expect(InviteCode.codeFromReferrer('rrc_code%3DMANOJ123'), 'MANOJ123');
+    expect(InviteCode.codeFromReferrer('rrc_code=ABCD1234&utm_source=x'), 'ABCD1234');
+    expect(InviteCode.codeFromReferrer('utm_source=google-play&utm_medium=organic'), isNull);
   });
 }
