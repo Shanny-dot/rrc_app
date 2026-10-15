@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../services/api_service.dart';
+import '../services/app_lock.dart';
+import 'auth_flow.dart' show LoginScreen;
 import '../theme/app_theme.dart';
 import '../widgets/core_widgets.dart';
 import '../widgets/ui_kit.dart';
@@ -8,6 +10,7 @@ import 'redesign/home_tab.dart';
 import 'redesign/referrals_tab.dart';
 import 'redesign/rewards_tab.dart';
 import 'redesign/events_tab.dart';
+import 'redesign/help_screen.dart';
 
 // The redesigned screens live in screens/redesign/. Re-exported so existing imports keep working.
 export 'redesign/home_tab.dart';
@@ -15,6 +18,8 @@ export 'redesign/referrals_tab.dart';
 export 'redesign/rewards_tab.dart';
 export 'redesign/events_tab.dart';
 export 'redesign/profile_screen.dart';
+export 'redesign/help_screen.dart';
+export 'redesign/welcome_tour.dart';
 
 // ----------------- Main Navigation Layout ----------------- //
 
@@ -25,8 +30,52 @@ class MainAppScaffold extends StatefulWidget {
   _MainAppScaffoldState createState() => _MainAppScaffoldState();
 }
 
-class _MainAppScaffoldState extends State<MainAppScaffold> {
+class _MainAppScaffoldState extends State<MainAppScaffold> with WidgetsBindingObserver {
   int _currentIndex = 0;
+  DateTime? _leftAt;
+  bool _lockShowing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  // Re-lock with Face ID / fingerprint when the member returns after a few minutes away.
+  // (The biometric prompt itself pauses the app, so ignore lifecycle changes while it's up.)
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) async {
+    if (AppLock.isAuthenticating || _lockShowing) return;
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
+      _leftAt ??= DateTime.now();
+    } else if (state == AppLifecycleState.resumed) {
+      final leftAt = _leftAt;
+      _leftAt = null;
+      if (leftAt == null || DateTime.now().difference(leftAt) < AppLock.relockAfter || !await AppLock.isEnabled()) return;
+      if (!mounted) return;
+      _lockShowing = true;
+      await Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (lockContext) => AppLockScreen(
+          onUnlocked: () => Navigator.pop(lockContext),
+          onUsePassword: () async {
+            await ApiService().logout();
+            if (lockContext.mounted) {
+              Navigator.of(lockContext, rootNavigator: true)
+                  .pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const LoginScreen()), (route) => false);
+            }
+          },
+        ),
+      ));
+      _lockShowing = false;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -147,13 +196,27 @@ class _ReferFormScreenState extends State<ReferFormScreen> {
     setState(() => _isLoading = false);
 
     if (res['success']) {
+      final contact = await ProgramContact.load();
+      if (!mounted) return;
       await showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
           backgroundColor: AppColors.surfaceCard,
           title: const Text('Thank you!'),
-          content: Text('We\'ve added $name to your referrals. A Reliance broker will contact them, '
-              'and you can follow their progress on the Referrals screen.'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('We\'ve added $name to your referrals. A Reliance broker will contact them, '
+                  'and you can follow their progress on the Referrals screen.'),
+              if (contact.hasAnyContact) ...[
+                const SizedBox(height: 18),
+                Text('Want to talk it through with your broker?', style: AppTextStyles.labelMedium),
+                const SizedBox(height: 10),
+                BrokerActions(info: contact, emailSubject: 'About my referral of $name'),
+              ],
+            ],
+          ),
           actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Done', style: TextStyle(color: AppColors.primaryGold)))],
         ),
       );

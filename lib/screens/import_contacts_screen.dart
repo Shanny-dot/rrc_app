@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import '../theme/app_theme.dart';
 import 'dashboard_screens.dart'; // To access ReferFormScreen
+import '../widgets/loading.dart';
 
 class ImportContactsScreen extends StatefulWidget {
   const ImportContactsScreen({Key? key}) : super(key: key);
@@ -75,7 +76,7 @@ class _ImportContactsScreenState extends State<ImportContactsScreen> {
     if (_contacts == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Import Contacts')),
-        body: const Center(child: CircularProgressIndicator(color: AppColors.primaryGold)),
+        body: const FriendlyLoader(message: 'Reading your contacts…'),
       );
     }
 

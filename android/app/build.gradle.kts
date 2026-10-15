@@ -96,3 +96,8 @@ flutter {
     source = "../.."
 }
 
+
+dependencies {
+    // AppCompat themes (styles.xml) for the Face ID / fingerprint dialog on Android 8 and below
+    implementation("androidx.appcompat:appcompat:1.7.0")
+}

@@ -4,6 +4,7 @@ import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/core_widgets.dart';
 import '../../widgets/ui_kit.dart';
+import '../../widgets/loading.dart';
 
 const int kLowStockThreshold = 20;
 
@@ -221,7 +222,7 @@ class _RewardsTabState extends State<RewardsTab> {
             ),
             Expanded(
               child: _isLoading
-                  ? const Center(child: CircularProgressIndicator(color: AppColors.primaryGold))
+                  ? const FriendlyLoader(message: 'Loading rewards…', layout: SkeletonLayout.cards)
                   : RefreshIndicator(
                       color: AppColors.primaryGold,
                       backgroundColor: AppColors.surfaceCard,

@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
+import '../../services/app_lock.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/core_widgets.dart';
+import '../../widgets/loading.dart';
 import '../../widgets/ui_kit.dart';
 import '../auth_flow.dart' show LoginScreen;
+import 'help_screen.dart';
 
 /// Drop-down options. Placeholder lists until Reliance confirms the official ones —
 /// keep the values in step with the admin website.
@@ -79,10 +82,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _income;
   String _referralCode = '';
 
+  bool _lockAvailable = false;
+  bool _lockEnabled = false;
+  String _lockLabel = 'Face ID';
+
   @override
   void initState() {
     super.initState();
     _load();
+    _loadLock();
+  }
+
+  Future<void> _loadLock() async {
+    final available = await AppLock.isAvailable();
+    final enabled = await AppLock.isEnabled();
+    final label = await AppLock.label();
+    if (!mounted) return;
+    setState(() {
+      _lockAvailable = available;
+      _lockEnabled = enabled;
+      _lockLabel = label;
+    });
+  }
+
+  Future<void> _toggleLock(bool on) async {
+    // Confirm with the biometric itself before turning it on, so members can't lock themselves out.
+    if (on && !await AppLock.authenticate("Confirm it's you to turn on $_lockLabel")) return;
+    await AppLock.setEnabled(on);
+    if (mounted) setState(() => _lockEnabled = on);
   }
 
   @override
@@ -244,12 +271,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Widget _settingsTile({required IconData icon, required String title, required String subtitle, required Widget trailing, required VoidCallback onTap}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: AppColors.surfaceCard,
+        borderRadius: BorderRadius.circular(AppDimens.radiusCard),
+        child: ListTile(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppDimens.radiusCard)),
+          leading: Icon(icon, color: AppColors.primaryGold),
+          title: Text(title, style: AppTextStyles.labelLarge),
+          subtitle: Text(subtitle, style: AppTextStyles.labelSmall),
+          trailing: trailing,
+          onTap: onTap,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Profile'), centerTitle: false),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primaryGold))
+          ? const FriendlyLoader(message: 'Loading your profile…', layout: SkeletonLayout.form)
           : SafeArea(
               child: Column(
                 children: [
@@ -301,6 +346,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         LabeledField(label: 'Home ownership status', child: _dropdown('Select', _homeOwnership, ProfileOptions.homeOwnership, (v) => setState(() => _homeOwnership = v))),
                         const SizedBox(height: 14),
                         LabeledField(label: 'Annual income range', child: _dropdown('Select', _income, ProfileOptions.incomes, (v) => setState(() => _income = v))),
+                        const SizedBox(height: 18),
+                        const SectionLabel('Security & help'),
+                        if (_lockAvailable)
+                          _settingsTile(
+                            icon: _lockLabel == 'Face ID' ? Icons.face_retouching_natural : Icons.fingerprint_rounded,
+                            title: 'Unlock with $_lockLabel',
+                            subtitle: 'Ask for $_lockLabel when you open the app',
+                            trailing: Switch(value: _lockEnabled, activeThumbColor: AppColors.primaryGold, onChanged: _toggleLock),
+                            onTap: () => _toggleLock(!_lockEnabled),
+                          ),
+                        _settingsTile(
+                          icon: Icons.help_outline_rounded,
+                          title: 'Help & contact',
+                          subtitle: 'Common questions, program terms and privacy',
+                          trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HelpScreen())),
+                        ),
                       ],
                     ),
                   ),

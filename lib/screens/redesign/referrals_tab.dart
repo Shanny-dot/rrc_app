@@ -8,6 +8,7 @@ import '../../widgets/core_widgets.dart';
 import '../../widgets/ui_kit.dart';
 import '../dashboard_screens.dart' show ReferFormScreen;
 import '../import_contacts_screen.dart';
+import '../../widgets/loading.dart';
 
 /// The five stages shown on each referral card.
 const kReferralSteps = ['Invited', 'Contacted', 'Loan in\nprogress', 'Settled', 'Points\nadded'];
@@ -118,7 +119,7 @@ class _ReferralsTabState extends State<ReferralsTab> {
     return Scaffold(
       body: SafeArea(
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator(color: AppColors.primaryGold))
+            ? const FriendlyLoader(message: 'Loading your referrals…')
             : RefreshIndicator(
                 color: AppColors.primaryGold,
                 backgroundColor: AppColors.surfaceCard,

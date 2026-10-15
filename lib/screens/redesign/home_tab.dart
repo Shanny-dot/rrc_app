@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
+import '../../services/app_lock.dart';
+import '../../widgets/loading.dart';
 import '../../widgets/ui_kit.dart';
+import 'help_screen.dart';
 import 'profile_screen.dart';
+import 'welcome_tour.dart';
 
 const _kNotificationsSeenKey = 'notifications_seen_at';
 
@@ -17,8 +21,12 @@ class DashboardTab extends StatefulWidget {
 }
 
 class _DashboardTabState extends State<DashboardTab> {
+  // Welcome tour and Face ID offer run once per app session, after Home first loads.
+  static bool _onboardingChecked = false;
+
   final ApiService _api = ApiService();
   bool _isLoading = true;
+  ProgramContact _contact = const ProgramContact();
   Map<String, dynamic>? _profile;
   List<dynamic> _activity = [];
   bool _hasUnread = false;
@@ -40,10 +48,11 @@ class _DashboardTabState extends State<DashboardTab> {
       }
       if (me['success']) _profile = me['data'];
 
-      final results = await Future.wait([_api.getTransactions(), _api.getNotifications()]);
-      final tx = results[0];
+      final results = await Future.wait([_api.getTransactions(), _api.getNotifications(), ProgramContact.load()]);
+      _contact = results[2] as ProgramContact;
+      final tx = results[0] as Map<String, dynamic>;
       if (tx['success'] && tx['data'] is List) _activity = tx['data'];
-      final notes = results[1];
+      final notes = results[1] as Map<String, dynamic>;
       if (notes['success'] && notes['data'] is List && (notes['data'] as List).isNotEmpty) {
         final latest = Fmt.parse((notes['data'] as List).first['at']);
         final seenRaw = await _api.storage.read(key: _kNotificationsSeenKey);
@@ -54,6 +63,11 @@ class _DashboardTabState extends State<DashboardTab> {
       debugPrint('Home load error: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+    if (_profile != null && !_onboardingChecked && mounted) {
+      _onboardingChecked = true;
+      await WelcomeTourScreen.showIfNew(context, _profile);
+      if (mounted) await AppLock.offerOnce(context);
     }
   }
 
@@ -69,7 +83,10 @@ class _DashboardTabState extends State<DashboardTab> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator(color: AppColors.primaryGold)));
+      return const Scaffold(body: SafeArea(child: FriendlyLoader(message: 'Getting your points…', layout: SkeletonLayout.home)));
+    }
+    if (_profile == null) {
+      return Scaffold(body: SafeArea(child: LoadErrorView(message: "We couldn't load your account.", onRetry: _load)));
     }
 
     final fullName = (_profile?['full_name'] ?? 'Member').toString();
@@ -100,6 +117,7 @@ class _DashboardTabState extends State<DashboardTab> {
                 const SizedBox(width: 12),
                 _quickAction(Icons.calendar_today_outlined, 'Events', () => widget.onNavigateToTab(3)),
               ]),
+              if (_contact.hasAnyContact) ...[const SizedBox(height: 16), BrokerCard(info: _contact)],
               const SizedBox(height: 28),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -377,7 +395,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Points history')),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primaryGold))
+          ? const FriendlyLoader(message: 'Loading your points history…')
           : RefreshIndicator(
               color: AppColors.primaryGold,
               onRefresh: _load,
@@ -444,7 +462,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Updates')),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primaryGold))
+          ? const FriendlyLoader(message: 'Checking for updates…')
           : RefreshIndicator(
               color: AppColors.primaryGold,
               onRefresh: _load,
@@ -532,7 +550,7 @@ class _TiersScreenState extends State<TiersScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Member tiers')),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primaryGold))
+          ? const FriendlyLoader(message: 'Loading member tiers…', layout: SkeletonLayout.cards)
           : ListView(
               padding: const EdgeInsets.all(AppDimens.pageMargin),
               children: [

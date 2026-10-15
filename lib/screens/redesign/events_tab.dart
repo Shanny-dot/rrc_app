@@ -6,6 +6,7 @@ import '../../utils/formatters.dart';
 import '../../widgets/core_widgets.dart';
 import '../../widgets/ui_kit.dart';
 import '../dashboard_screens.dart' show QRScannerScreen;
+import '../../widgets/loading.dart';
 
 // ----------------- Events ----------------- //
 class EventsTab extends StatefulWidget {
@@ -163,7 +164,7 @@ class _EventsTabState extends State<EventsTab> {
             const SizedBox(height: 14),
             Expanded(
               child: _isLoading
-                  ? const Center(child: CircularProgressIndicator(color: AppColors.primaryGold))
+                  ? const FriendlyLoader(message: 'Finding upcoming events…', layout: SkeletonLayout.cards)
                   : RefreshIndicator(
                       color: AppColors.primaryGold,
                       backgroundColor: AppColors.surfaceCard,

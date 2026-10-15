@@ -8,6 +8,7 @@ import '../widgets/core_widgets.dart';
 import 'dashboard_screens.dart';
 import '../services/api_service.dart';
 import '../services/version_gate.dart';
+import '../services/app_lock.dart';
 import '../services/social_config.dart';
 
 // ----------------- Auth flow ----------------- //
@@ -48,9 +49,22 @@ class _SplashScreenState extends State<SplashScreen> {
           // Ping backend to ensure token is still valid (timeout after 10s to prevent getting stuck)
           final res = await api.getMe().timeout(const Duration(seconds: 10));
           if (res['success']) {
-             if (mounted) {
-                Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const MainAppScaffold()));
+             if (!mounted) return;
+             if (await AppLock.isEnabled()) {
+                if (!mounted) return;
+                Navigator.pushReplacement(context, MaterialPageRoute(builder: (lockContext) => AppLockScreen(
+                  onUnlocked: () => Navigator.pushReplacement(lockContext, MaterialPageRoute(builder: (_) => const MainAppScaffold())),
+                  onUsePassword: () async {
+                    await api.logout();
+                    if (lockContext.mounted) {
+                      Navigator.pushReplacement(lockContext, MaterialPageRoute(builder: (_) => const LoginScreen()));
+                    }
+                  },
+                )));
+                return;
              }
+             if (!mounted) return;
+             Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const MainAppScaffold()));
              return;
           }
        }
