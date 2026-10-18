@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../services/api_service.dart';
-import '../services/app_lock.dart';
-import 'auth_flow.dart' show LoginScreen;
 import '../theme/app_theme.dart';
 import '../widgets/core_widgets.dart';
 import '../widgets/ui_kit.dart';
@@ -32,52 +30,8 @@ class MainAppScaffold extends StatefulWidget {
   _MainAppScaffoldState createState() => _MainAppScaffoldState();
 }
 
-class _MainAppScaffoldState extends State<MainAppScaffold> with WidgetsBindingObserver {
+class _MainAppScaffoldState extends State<MainAppScaffold> {
   int _currentIndex = 0;
-  DateTime? _leftAt;
-  bool _lockShowing = false;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  // Re-lock with Face ID / fingerprint when the member returns after a few minutes away.
-  // (The biometric prompt itself pauses the app, so ignore lifecycle changes while it's up.)
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) async {
-    if (AppLock.isAuthenticating || _lockShowing) return;
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
-      _leftAt ??= DateTime.now();
-    } else if (state == AppLifecycleState.resumed) {
-      final leftAt = _leftAt;
-      _leftAt = null;
-      if (leftAt == null || DateTime.now().difference(leftAt) < AppLock.relockAfter || !await AppLock.isEnabled()) return;
-      if (!mounted) return;
-      _lockShowing = true;
-      await Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
-        fullscreenDialog: true,
-        builder: (lockContext) => AppLockScreen(
-          onUnlocked: () => Navigator.pop(lockContext),
-          onUsePassword: () async {
-            await ApiService().logout();
-            if (lockContext.mounted) {
-              Navigator.of(lockContext, rootNavigator: true)
-                  .pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const LoginScreen()), (route) => false);
-            }
-          },
-        ),
-      ));
-      _lockShowing = false;
-    }
-  }
 
   @override
   Widget build(BuildContext context) {

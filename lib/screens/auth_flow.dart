@@ -8,7 +8,6 @@ import '../widgets/core_widgets.dart';
 import 'dashboard_screens.dart';
 import '../services/api_service.dart';
 import '../services/version_gate.dart';
-import '../services/app_lock.dart';
 import '../services/invite_code.dart';
 import '../services/social_config.dart';
 
@@ -47,27 +46,16 @@ class _SplashScreenState extends State<SplashScreen> {
        final hasToken = await api.isLoggedIn();
        
        if (hasToken) {
-          // Ping backend to ensure token is still valid (timeout after 10s to prevent getting stuck)
-          final res = await api.getMe().timeout(const Duration(seconds: 10));
-          if (res['success']) {
-             if (!mounted) return;
-             if (await AppLock.isEnabled()) {
-                if (!mounted) return;
-                Navigator.pushReplacement(context, MaterialPageRoute(builder: (lockContext) => AppLockScreen(
-                  onUnlocked: () => Navigator.pushReplacement(lockContext, MaterialPageRoute(builder: (_) => const MainAppScaffold())),
-                  onUsePassword: () async {
-                    await api.logout();
-                    if (lockContext.mounted) {
-                      Navigator.pushReplacement(lockContext, MaterialPageRoute(builder: (_) => const LoginScreen()));
-                    }
-                  },
-                )));
-                return;
-             }
+          // Renew the sign-in (members stay signed in for months), then go straight to Home.
+          // Only a token the server rejects signs the member out; a slow or offline server
+          // never does — Home shows its own retry instead.
+          final renewed = await api.refreshSession().timeout(const Duration(seconds: 20), onTimeout: () => SessionCheck.unreachable);
+          if (renewed != SessionCheck.rejected) {
              if (!mounted) return;
              Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const MainAppScaffold()));
              return;
           }
+          await api.logout();
        }
      } catch (e) {
        debugPrint("Auth check failed or timed out: $e");

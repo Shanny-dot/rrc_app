@@ -8,6 +8,87 @@ import '../../widgets/ui_kit.dart';
 import '../dashboard_screens.dart' show QRScannerScreen;
 import '../../widgets/loading.dart';
 
+// ----------------- Shared event helpers (list and detail screen) ----------------- //
+
+/// "50" or, when staff set an "up to" amount on the admin website, "50–100".
+String eventPointsText(dynamic e, String key) {
+  final min = Fmt.toInt(e[key]);
+  final max = Fmt.toInt(e['${key}_max']);
+  return max > min ? '${Fmt.number(min)}–${Fmt.number(max)}' : Fmt.number(min);
+}
+
+bool _hasPoints(dynamic e, String key) => Fmt.toInt(e[key]) > 0 || Fmt.toInt(e['${key}_max']) > 0;
+
+IconData eventIcon(dynamic e) {
+  final text = '${e['category'] ?? ''} ${e['title'] ?? ''} ${e['location'] ?? ''}'.toLowerCase();
+  if (text.contains('online') || text.contains('webinar') || text.contains('virtual')) return Icons.desktop_windows_outlined;
+  if (text.contains('home') || text.contains('buyer') || text.contains('property') || text.contains('real estate')) return Icons.home_outlined;
+  if (text.contains('dinner') || text.contains('dining') || text.contains('breakfast') || text.contains('lunch') || text.contains('gala')) {
+    return Icons.restaurant_outlined;
+  }
+  if (text.contains('network')) return Icons.groups_outlined;
+  return Icons.event_outlined;
+}
+
+Future<bool> rsvpToEvent(BuildContext context, String id) async {
+  final res = await ApiService().rsvpEvent(id);
+  if (context.mounted) {
+    showToast(context, res['success'] ? 'You\'re going! We\'ve emailed your confirmation.' : (res['error'] ?? 'RSVP failed').toString(),
+        error: !res['success']);
+  }
+  return res['success'] == true;
+}
+
+Future<bool> cancelEventRsvp(BuildContext context, String id, String title) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: AppColors.surfaceCard,
+      title: const Text('Cancel RSVP?'),
+      content: Text('You\'ll no longer be booked in for $title.'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep my spot')),
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, true),
+          child: const Text('Cancel RSVP', style: TextStyle(color: AppColors.error)),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true) return false;
+  final res = await ApiService().cancelRsvp(id);
+  if (context.mounted) {
+    showToast(context, res['success'] ? 'Your RSVP has been cancelled.' : (res['error'] ?? 'Could not cancel').toString(),
+        error: !res['success']);
+  }
+  return res['success'] == true;
+}
+
+void addEventToCalendar(dynamic e) {
+  final start = Fmt.parse(e['event_date']) ?? DateTime.now();
+  cal.Add2Calendar.addEvent2Cal(cal.Event(
+    title: (e['title'] ?? 'Reliance event').toString(),
+    description: (e['description'] ?? '').toString(),
+    location: (e['location'] ?? '').toString(),
+    startDate: start,
+    endDate: start.add(const Duration(hours: 2)), // events don't have an end time yet
+  ));
+}
+
+void openInviteGuestSheet(BuildContext context, dynamic e) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: AppColors.surfaceCard,
+    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+    builder: (_) => InviteGuestSheet(
+      eventId: e['id'].toString(),
+      eventTitle: (e['title'] ?? 'this event').toString(),
+      pointsText: _hasPoints(e, 'points_for_referring') ? eventPointsText(e, 'points_for_referring') : null,
+    ),
+  );
+}
+
 // ----------------- Events ----------------- //
 class EventsTab extends StatefulWidget {
   const EventsTab({Key? key}) : super(key: key);
@@ -18,6 +99,8 @@ class EventsTab extends StatefulWidget {
 
 class _EventsTabState extends State<EventsTab> {
   final ApiService _api = ApiService();
+  final TextEditingController _search = TextEditingController();
+  String _query = '';
   bool _isLoading = true;
   bool _showPast = false;
   List<dynamic> _events = [];
@@ -28,6 +111,12 @@ class _EventsTabState extends State<EventsTab> {
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -48,9 +137,15 @@ class _EventsTabState extends State<EventsTab> {
   }
 
   // Upcoming: start time in the future (soonest first). Past: already started (most recent first).
+  // The search box matches title, description, location and category.
   List<dynamic> get _visible {
     final now = DateTime.now();
+    final q = _query.toLowerCase();
     final list = _events.where((e) {
+      if (q.isNotEmpty) {
+        final text = '${e['title'] ?? ''} ${e['description'] ?? ''} ${e['location'] ?? ''} ${e['category'] ?? ''}'.toLowerCase();
+        if (!text.contains(q)) return false;
+      }
       final start = Fmt.parse(e['event_date']);
       if (start == null) return !_showPast;
       return _showPast ? !start.isAfter(now) : start.isAfter(now);
@@ -65,67 +160,27 @@ class _EventsTabState extends State<EventsTab> {
 
   Future<void> _rsvp(String id) async {
     setState(() => _busy.add(id));
-    final res = await _api.rsvpEvent(id);
+    final ok = await rsvpToEvent(context, id);
     if (!mounted) return;
     setState(() {
       _busy.remove(id);
-      if (res['success']) _myRsvps[id] = {'event_id': id, 'attended': false};
+      if (ok) _myRsvps[id] = {'event_id': id, 'attended': false};
     });
-    showToast(context, res['success'] ? 'You\'re going! We\'ve emailed your confirmation.' : (res['error'] ?? 'RSVP failed').toString(),
-        error: !res['success']);
   }
 
   Future<void> _cancel(String id, String title) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surfaceCard,
-        title: const Text('Cancel RSVP?'),
-        content: Text('You\'ll no longer be booked in for $title.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep my spot')),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Cancel RSVP', style: TextStyle(color: AppColors.error)),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
     setState(() => _busy.add(id));
-    final res = await _api.cancelRsvp(id);
+    final ok = await cancelEventRsvp(context, id, title);
     if (!mounted) return;
     setState(() {
       _busy.remove(id);
-      if (res['success']) _myRsvps.remove(id);
+      if (ok) _myRsvps.remove(id);
     });
-    showToast(context, res['success'] ? 'Your RSVP has been cancelled.' : (res['error'] ?? 'Could not cancel').toString(),
-        error: !res['success']);
   }
 
-  void _addToCalendar(dynamic e) {
-    final start = Fmt.parse(e['event_date']) ?? DateTime.now();
-    cal.Add2Calendar.addEvent2Cal(cal.Event(
-      title: (e['title'] ?? 'Reliance event').toString(),
-      description: (e['description'] ?? '').toString(),
-      location: (e['location'] ?? '').toString(),
-      startDate: start,
-      endDate: start.add(const Duration(hours: 2)), // events don't have an end time yet
-    ));
-  }
-
-  void _invite(dynamic e) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.surfaceCard,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (_) => InviteGuestSheet(
-        eventId: e['id'].toString(),
-        eventTitle: (e['title'] ?? 'this event').toString(),
-        pointsPerFriend: Fmt.toInt(e['points_for_referring']),
-      ),
-    );
+  Future<void> _openDetail(dynamic e) async {
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => EventDetailScreen(event: e, rsvp: _myRsvps[e['id'].toString()])));
+    _load(); // the member may have RSVP'd or cancelled on the detail screen
   }
 
   @override
@@ -159,6 +214,25 @@ class _EventsTabState extends State<EventsTab> {
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppDimens.pageMargin),
+              child: DarkTextField(
+                hint: 'Search events',
+                controller: _search,
+                prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textSecondary),
+                suffixIcon: _query.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary),
+                        onPressed: () => setState(() {
+                          _search.clear();
+                          _query = '';
+                        }),
+                      ),
+                onChanged: (v) => setState(() => _query = v.trim()),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppDimens.pageMargin),
               child: _segmented(),
             ),
             const SizedBox(height: 14),
@@ -172,8 +246,15 @@ class _EventsTabState extends State<EventsTab> {
                       child: events.isEmpty
                           ? ListView(children: [
                               const SizedBox(height: 100),
-                              Center(child: Text(_showPast ? 'No past events yet' : 'No upcoming events right now.\nCheck back soon.',
-                                  textAlign: TextAlign.center, style: AppTextStyles.labelMedium)),
+                              Center(
+                                  child: Text(
+                                      _query.isNotEmpty
+                                          ? 'No events match "$_query".'
+                                          : _showPast
+                                              ? 'No past events yet'
+                                              : 'No upcoming events right now.\nCheck back soon.',
+                                      textAlign: TextAlign.center,
+                                      style: AppTextStyles.labelMedium)),
                             ])
                           : ListView.separated(
                               padding: const EdgeInsets.fromLTRB(AppDimens.pageMargin, 4, AppDimens.pageMargin, 24),
@@ -221,85 +302,104 @@ class _EventsTabState extends State<EventsTab> {
     );
   }
 
-  IconData _iconFor(dynamic e) {
-    final text = '${e['category'] ?? ''} ${e['title'] ?? ''} ${e['location'] ?? ''}'.toLowerCase();
-    if (text.contains('online') || text.contains('webinar') || text.contains('virtual')) return Icons.desktop_windows_outlined;
-    if (text.contains('home') || text.contains('buyer') || text.contains('property') || text.contains('real estate')) return Icons.home_outlined;
-    if (text.contains('dinner') || text.contains('dining') || text.contains('breakfast') || text.contains('lunch') || text.contains('gala')) {
-      return Icons.restaurant_outlined;
-    }
-    if (text.contains('network')) return Icons.groups_outlined;
-    return Icons.event_outlined;
-  }
-
   Widget _eventCard(dynamic e) {
     final id = e['id'].toString();
     final title = (e['title'] ?? 'Event').toString();
     final start = Fmt.parse(e['event_date']);
     final location = (e['location'] ?? '').toString();
-    final attendPts = Fmt.toInt(e['points_for_attending']);
-    final friendPts = Fmt.toInt(e['points_for_referring']);
     final rsvp = _myRsvps[id];
     final going = rsvp != null;
     final attended = rsvp?['attended'] == true;
     final busy = _busy.contains(id);
     final when = [Fmt.dayDate(start), if (start != null) Fmt.time(start), if (location.isNotEmpty) location].join(' · ');
 
-    return Container(
+    return Material(
+      color: AppColors.surfaceCard,
+      borderRadius: BorderRadius.circular(20),
       clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(color: AppColors.surfaceCard, borderRadius: BorderRadius.circular(20)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          TintedHeader(seed: id, icon: _iconFor(e), imageUrl: e['image_url']?.toString(), height: 130),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: AppTextStyles.h3.copyWith(fontSize: 19)),
-                const SizedBox(height: 4),
-                Text(when, style: AppTextStyles.labelMedium),
-                if (attendPts > 0 || friendPts > 0) const SizedBox(height: 12),
-                Wrap(spacing: 8, runSpacing: 8, children: [
-                  if (attendPts > 0) InfoPill('+${Fmt.number(attendPts)} pts for attending', highlight: true),
-                  if (friendPts > 0 && !_showPast) InfoPill('+${Fmt.number(friendPts)} pts per friend you bring'),
-                ]),
-                const SizedBox(height: 16),
-                if (_showPast)
-                  _pastFooter(attended, going)
-                else if (busy)
-                  const SizedBox(height: 48, child: Center(child: CircularProgressIndicator(color: AppColors.primaryGold)))
-                else if (going) ...[
-                  Row(children: [
-                    Expanded(child: _goingBadge()),
-                    const SizedBox(width: 10),
-                    Expanded(child: OutlineAction(text: 'Add to calendar', onPressed: () => _addToCalendar(e))),
-                  ]),
-                  const SizedBox(height: 10),
-                  Wrap(crossAxisAlignment: WrapCrossAlignment.center, children: [
-                    Text('Confirmation sent to your email · ', style: AppTextStyles.labelSmall),
-                    GestureDetector(
-                      onTap: () => _cancel(id, title),
-                      child: Text('Cancel RSVP',
-                          style: AppTextStyles.labelSmall.copyWith(color: AppColors.textPrimary, decoration: TextDecoration.underline)),
+      child: InkWell(
+        onTap: () => _openDetail(e),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TintedHeader(seed: id, icon: eventIcon(e), imageUrl: e['image_url']?.toString(), height: 130),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Expanded(child: Text(title, style: AppTextStyles.h3.copyWith(fontSize: 19))),
+                    const Padding(
+                      padding: EdgeInsets.only(left: 8, top: 2),
+                      child: Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
                     ),
                   ]),
-                ] else
-                  Row(children: [
-                    Expanded(child: FilledAction(text: 'RSVP', onPressed: () => _rsvp(id))),
-                    const SizedBox(width: 10),
-                    Expanded(child: OutlineAction(text: 'Invite a friend', onPressed: () => _invite(e))),
-                  ]),
-              ],
+                  const SizedBox(height: 4),
+                  Text(when, style: AppTextStyles.labelMedium),
+                  EventPointsPills(event: e, past: _showPast),
+                  const SizedBox(height: 16),
+                  if (_showPast)
+                    EventPastFooter(attended: attended, going: going)
+                  else if (busy)
+                    const SizedBox(height: 48, child: Center(child: CircularProgressIndicator(color: AppColors.primaryGold)))
+                  else if (going) ...[
+                    Row(children: [
+                      const Expanded(child: EventGoingBadge()),
+                      const SizedBox(width: 10),
+                      Expanded(child: OutlineAction(text: 'Add to calendar', onPressed: () => addEventToCalendar(e))),
+                    ]),
+                    const SizedBox(height: 10),
+                    Wrap(crossAxisAlignment: WrapCrossAlignment.center, children: [
+                      Text('Confirmation sent to your email · ', style: AppTextStyles.labelSmall),
+                      GestureDetector(
+                        onTap: () => _cancel(id, title),
+                        child: Text('Cancel RSVP',
+                            style: AppTextStyles.labelSmall.copyWith(color: AppColors.textPrimary, decoration: TextDecoration.underline)),
+                      ),
+                    ]),
+                  ] else
+                    Row(children: [
+                      Expanded(child: FilledAction(text: 'RSVP', onPressed: () => _rsvp(id))),
+                      const SizedBox(width: 10),
+                      Expanded(child: OutlineAction(text: 'Invite a friend', onPressed: () => openInviteGuestSheet(context, e))),
+                    ]),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
+}
 
-  Widget _goingBadge() => Container(
+/// "+50–100 pts for attending" / "+20 pts per friend you bring".
+class EventPointsPills extends StatelessWidget {
+  final dynamic event;
+  final bool past;
+  const EventPointsPills({Key? key, required this.event, this.past = false}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final attend = _hasPoints(event, 'points_for_attending');
+    final friend = _hasPoints(event, 'points_for_referring') && !past;
+    if (!attend && !friend) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Wrap(spacing: 8, runSpacing: 8, children: [
+        if (attend) InfoPill('+${eventPointsText(event, 'points_for_attending')} pts for attending', highlight: true),
+        if (friend) InfoPill('+${eventPointsText(event, 'points_for_referring')} pts per friend you bring'),
+      ]),
+    );
+  }
+}
+
+class EventGoingBadge extends StatelessWidget {
+  const EventGoingBadge({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) => Container(
         height: 48,
         decoration: BoxDecoration(
           color: UiColors.greenBg,
@@ -312,8 +412,15 @@ class _EventsTabState extends State<EventsTab> {
           Text('You\'re going', style: TextStyle(color: UiColors.green, fontWeight: FontWeight.w700, fontSize: 15)),
         ]),
       );
+}
 
-  Widget _pastFooter(bool attended, bool going) {
+class EventPastFooter extends StatelessWidget {
+  final bool attended;
+  final bool going;
+  const EventPastFooter({Key? key, required this.attended, required this.going}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
     final text = attended ? 'You attended this event' : (going ? 'You were booked in' : 'This event has ended');
     return Row(children: [
       Icon(attended ? Icons.check_circle_outline_rounded : Icons.history_rounded,
@@ -324,12 +431,140 @@ class _EventsTabState extends State<EventsTab> {
   }
 }
 
+// ----------------- Event detail ----------------- //
+class EventDetailScreen extends StatefulWidget {
+  final dynamic event;
+  final Map<String, dynamic>? rsvp;
+  const EventDetailScreen({Key? key, required this.event, this.rsvp}) : super(key: key);
+
+  @override
+  State<EventDetailScreen> createState() => _EventDetailScreenState();
+}
+
+class _EventDetailScreenState extends State<EventDetailScreen> {
+  late Map<String, dynamic>? _rsvp = widget.rsvp;
+  bool _busy = false;
+
+  dynamic get e => widget.event;
+
+  Future<void> _rsvpNow() async {
+    setState(() => _busy = true);
+    final ok = await rsvpToEvent(context, e['id'].toString());
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      if (ok) _rsvp = {'event_id': e['id'].toString(), 'attended': false};
+    });
+  }
+
+  Future<void> _cancel() async {
+    setState(() => _busy = true);
+    final ok = await cancelEventRsvp(context, e['id'].toString(), (e['title'] ?? 'this event').toString());
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      if (ok) _rsvp = null;
+    });
+  }
+
+  Widget _infoRow(IconData icon, String text) => Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(icon, color: AppColors.primaryGold, size: 20),
+          const SizedBox(width: 12),
+          Expanded(child: Text(text, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textPrimary))),
+        ]),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final id = e['id'].toString();
+    final title = (e['title'] ?? 'Event').toString();
+    final start = Fmt.parse(e['event_date']);
+    final location = (e['location'] ?? '').toString();
+    final category = (e['category'] ?? '').toString();
+    final description = (e['description'] ?? '').toString().trim();
+    final past = start != null && !start.isAfter(DateTime.now());
+    final going = _rsvp != null;
+    final attended = _rsvp?['attended'] == true;
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Event details')),
+      body: SafeArea(
+        child: Column(children: [
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                TintedHeader(seed: id, icon: eventIcon(e), imageUrl: e['image_url']?.toString(), height: 200),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(AppDimens.pageMargin, 18, AppDimens.pageMargin, 24),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    if (category.isNotEmpty) ...[StatusChip(category), const SizedBox(height: 10)],
+                    Text(title, style: AppTextStyles.h2),
+                    const SizedBox(height: 16),
+                    if (start != null) _infoRow(Icons.calendar_today_outlined, '${Fmt.dayDate(start)} · ${Fmt.time(start)}'),
+                    if (location.isNotEmpty) _infoRow(Icons.place_outlined, location),
+                    EventPointsPills(event: e, past: past),
+                    const SizedBox(height: 20),
+                    Text('About this event', style: AppTextStyles.h3.copyWith(fontSize: 17)),
+                    const SizedBox(height: 8),
+                    Text(description.isNotEmpty ? description : 'More details coming soon.',
+                        style: AppTextStyles.bodyMedium.copyWith(height: 1.55)),
+                    if (!past && _hasPoints(e, 'points_for_attending')) ...[
+                      const SizedBox(height: 20),
+                      Text('Collect your points on the day with the Check in button on the Events screen.',
+                          style: AppTextStyles.labelSmall),
+                    ],
+                  ]),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.fromLTRB(AppDimens.pageMargin, 12, AppDimens.pageMargin, 12),
+            decoration: const BoxDecoration(border: Border(top: BorderSide(color: UiColors.border))),
+            child: past
+                ? EventPastFooter(attended: attended, going: going)
+                : _busy
+                    ? const SizedBox(height: 48, child: Center(child: CircularProgressIndicator(color: AppColors.primaryGold)))
+                    : going
+                        ? Column(mainAxisSize: MainAxisSize.min, children: [
+                            Row(children: [
+                              const Expanded(child: EventGoingBadge()),
+                              const SizedBox(width: 10),
+                              Expanded(child: OutlineAction(text: 'Add to calendar', onPressed: () => addEventToCalendar(e))),
+                            ]),
+                            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                              TextButton(
+                                onPressed: () => openInviteGuestSheet(context, e),
+                                child: Text('Invite a friend', style: AppTextStyles.labelMedium.copyWith(color: AppColors.primaryGold)),
+                              ),
+                              TextButton(
+                                onPressed: _cancel,
+                                child: Text('Cancel RSVP', style: AppTextStyles.labelMedium.copyWith(color: AppColors.textSecondary)),
+                              ),
+                            ]),
+                          ])
+                        : Row(children: [
+                            Expanded(child: FilledAction(text: 'RSVP', onPressed: _rsvpNow)),
+                            const SizedBox(width: 10),
+                            Expanded(child: OutlineAction(text: 'Invite a friend', onPressed: () => openInviteGuestSheet(context, e))),
+                          ]),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
 /// Bottom sheet to invite a friend to a specific event (earns the "per friend you bring" points).
+/// The friend gets an email invitation with the event details from no-reply.
 class InviteGuestSheet extends StatefulWidget {
   final String eventId;
   final String eventTitle;
-  final int pointsPerFriend;
-  const InviteGuestSheet({Key? key, required this.eventId, required this.eventTitle, required this.pointsPerFriend}) : super(key: key);
+  final String? pointsText; // "20" or "20–50"; null when there are no points for bringing a friend
+  const InviteGuestSheet({Key? key, required this.eventId, required this.eventTitle, this.pointsText}) : super(key: key);
 
   @override
   State<InviteGuestSheet> createState() => _InviteGuestSheetState();
@@ -366,8 +601,11 @@ class _InviteGuestSheetState extends State<InviteGuestSheet> {
     ]);
     if (!mounted) return;
     if (res['success']) {
+      final emailed = res['data'] is Map && Fmt.toInt(res['data']['emailed']) > 0;
       Navigator.pop(context);
-      showToast(context, 'Invitation sent to $name.');
+      showToast(context, emailed
+          ? 'Invitation emailed to $name.'
+          : 'We\'ve noted $name as your guest. Let them know the details, and ask them to check in at the event.');
     } else {
       setState(() {
         _sending = false;
@@ -389,8 +627,8 @@ class _InviteGuestSheetState extends State<InviteGuestSheet> {
           Text('Invite a friend', style: AppTextStyles.h3),
           const SizedBox(height: 6),
           Text(
-            widget.pointsPerFriend > 0
-                ? 'Bring a friend to ${widget.eventTitle} and earn ${Fmt.pts(widget.pointsPerFriend)} when they check in.'
+            widget.pointsText != null
+                ? 'We\'ll email your friend an invitation to ${widget.eventTitle}. You earn ${widget.pointsText} points when they check in.'
                 : 'We\'ll email your friend an invitation to ${widget.eventTitle}.',
             style: AppTextStyles.bodyMedium,
           ),

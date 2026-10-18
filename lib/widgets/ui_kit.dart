@@ -36,11 +36,14 @@ class StatusChip extends StatelessWidget {
       case 'approved':
       case 'settled':
       case 'joined the app':
+      case 'signed up':
         return (UiColors.green, UiColors.greenBg);
       case 'sent':
+      case 'in progress':
       case 'loan in progress':
       case 'contacted':
         return (UiColors.blue, UiColors.blueBg);
+      case 'rejected':
       case 'refunded':
       case 'points removed':
       case 'not proceeding':

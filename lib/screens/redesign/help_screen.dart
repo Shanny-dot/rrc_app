@@ -7,10 +7,12 @@ import '../../utils/formatters.dart';
 import '../../widgets/loading.dart';
 import '../../widgets/ui_kit.dart';
 import 'feedback_screen.dart';
+import 'home_tab.dart' show TiersScreen;
 import 'welcome_tour.dart';
 
 /// Contact details and help content, edited by staff on the admin "Help & Contact" page.
 class ProgramContact {
+  final String cardTitle;
   final String name;
   final String phone;
   final String email;
@@ -21,6 +23,7 @@ class ProgramContact {
   final List<Map<String, String>> faq;
 
   const ProgramContact({
+    this.cardTitle = 'Contact us',
     this.name = 'Your Reliance broker',
     this.phone = '',
     this.email = '',
@@ -50,6 +53,7 @@ class ProgramContact {
     } catch (_) {}
     String v(String key) => (c[key] ?? '').trim();
     return _cached = ProgramContact(
+      cardTitle: v('contact_card_title').isEmpty ? 'Contact us' : v('contact_card_title'),
       name: v('contact_name').isEmpty ? 'Your Reliance broker' : v('contact_name'),
       phone: v('contact_phone'),
       email: v('contact_email'),
@@ -100,7 +104,7 @@ class BrokerActions extends StatelessWidget {
   }
 }
 
-/// "Talk to my broker" card for Home.
+/// "Contact us" card for Home (title edited on the admin Help & Contact page).
 class BrokerCard extends StatelessWidget {
   final ProgramContact info;
   const BrokerCard({Key? key, required this.info}) : super(key: key);
@@ -126,7 +130,7 @@ class BrokerCard extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Talk to my broker', style: AppTextStyles.labelLarge.copyWith(fontWeight: FontWeight.w700)),
+                Text(info.cardTitle, style: AppTextStyles.labelLarge.copyWith(fontWeight: FontWeight.w700)),
                 const SizedBox(height: 2),
                 Text(info.hours.isNotEmpty ? '${info.name} · ${info.hours}' : info.name, style: AppTextStyles.labelSmall),
               ]),
@@ -196,7 +200,7 @@ class _HelpScreenState extends State<HelpScreen> {
                           ),
                         )),
                   const SizedBox(height: 18),
-                  const SectionLabel('Contact us'),
+                  SectionLabel(info.cardTitle),
                   if (info.hours.isNotEmpty) ...[
                     Text('${info.name} · ${info.hours}', style: AppTextStyles.bodyMedium),
                     const SizedBox(height: 12),
@@ -207,6 +211,8 @@ class _HelpScreenState extends State<HelpScreen> {
                       () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FeedbackScreen()))),
                   const SizedBox(height: 18),
                   const SectionLabel('About the program'),
+                  _linkRow(Icons.star_border_rounded, 'What do tiers give me?',
+                      () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TiersScreen()))),
                   _linkRow(Icons.play_circle_outline_rounded, 'Replay the welcome tour',
                       () => Navigator.push(context, MaterialPageRoute(fullscreenDialog: true, builder: (_) => const WelcomeTourScreen()))),
                   if (info.termsUrl.isNotEmpty)

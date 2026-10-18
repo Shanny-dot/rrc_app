@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
-import '../../services/app_lock.dart';
 import '../../services/push_alerts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../widgets/loading.dart';
@@ -24,13 +23,13 @@ class DashboardTab extends StatefulWidget {
 }
 
 class _DashboardTabState extends State<DashboardTab> {
-  // Welcome tour and Face ID offer run once per app session, after Home first loads.
+  // Welcome tour and phone-alert setup run once per app session, after Home first loads.
   static bool _onboardingChecked = false;
+  static const _recentCount = 5; // the rest of the points history is under the bell
 
   final ApiService _api = ApiService();
   bool _isLoading = true;
   ProgramContact _contact = const ProgramContact();
-  Map<String, dynamic>? _checkin;
   Map<String, dynamic>? _profile;
   List<dynamic> _activity = [];
   bool _hasUnread = false;
@@ -52,12 +51,8 @@ class _DashboardTabState extends State<DashboardTab> {
       }
       if (me['success']) _profile = me['data'];
 
-      final results = await Future.wait([_api.getTransactions(), _api.getNotifications(), ProgramContact.load(), _api.getLoanCheckin()]);
+      final results = await Future.wait([_api.getTransactions(), _api.getNotifications(), ProgramContact.load(refresh: true)]);
       _contact = results[2] as ProgramContact;
-      final checkin = results[3] as Map<String, dynamic>;
-      _checkin = checkin['success'] == true && checkin['data'] is Map && checkin['data']['due'] == true
-          ? Map<String, dynamic>.from(checkin['data'])
-          : null;
       final tx = results[0] as Map<String, dynamic>;
       if (tx['success'] && tx['data'] is List) _activity = tx['data'];
       final notes = results[1] as Map<String, dynamic>;
@@ -75,7 +70,6 @@ class _DashboardTabState extends State<DashboardTab> {
     if (_profile != null && !_onboardingChecked && mounted) {
       _onboardingChecked = true;
       await WelcomeTourScreen.showIfNew(context, _profile);
-      if (mounted) await AppLock.offerOnce(context);
       await PushAlerts.register();
       final launchAlert = PushAlerts.takeLaunchAlert();
       if (launchAlert != null && mounted) openAlert(context, launchAlert);
@@ -86,8 +80,8 @@ class _DashboardTabState extends State<DashboardTab> {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen())).then((_) => _load());
   }
 
-  void _openNotifications() async {
-    await Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen()));
+  void _openNotifications({bool history = false}) async {
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => NotificationsScreen(showHistory: history, history: _activity)));
     if (mounted) setState(() => _hasUnread = false);
   }
 
@@ -119,7 +113,6 @@ class _DashboardTabState extends State<DashboardTab> {
               _header(initial, firstName),
               const SizedBox(height: 20),
               if (!profileComplete) ...[_profileBanner(), const SizedBox(height: 16)],
-              if (_checkin != null) ...[_loanCheckinCard(), const SizedBox(height: 16)],
               _pointsCard(points, tier),
               const SizedBox(height: 16),
               Row(children: [
@@ -132,17 +125,7 @@ class _DashboardTabState extends State<DashboardTab> {
               const SizedBox(height: 16),
               BrokerCard(info: _contact),
               const SizedBox(height: 28),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Recent activity', style: AppTextStyles.h3),
-                  if (_activity.isNotEmpty)
-                    GestureDetector(
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ActivityScreen(initial: _activity))),
-                      child: Text('See all', style: AppTextStyles.labelMedium.copyWith(color: AppColors.primaryGold)),
-                    ),
-                ],
-              ),
+              Text('Recent activity', style: AppTextStyles.h3),
               const SizedBox(height: 14),
               if (_activity.isEmpty)
                 Padding(
@@ -150,8 +133,21 @@ class _DashboardTabState extends State<DashboardTab> {
                   child: Center(child: Text('No activity yet. Refer a friend or attend an event to earn points.',
                       textAlign: TextAlign.center, style: AppTextStyles.labelMedium)),
                 )
-              else
-                ..._activity.take(4).map((a) => ActivityRow(item: a)),
+              else ...[
+                ..._activity.take(_recentCount).map((a) => ActivityRow(item: a)),
+                if (_activity.length > _recentCount)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Center(
+                      child: TextButton.icon(
+                        onPressed: () => _openNotifications(history: true),
+                        icon: const Icon(Icons.notifications_none_rounded, size: 18),
+                        label: const Text('Older activity is under the bell at the top'),
+                        style: TextButton.styleFrom(foregroundColor: AppColors.textSecondary),
+                      ),
+                    ),
+                  ),
+              ],
             ],
           ),
         ),
@@ -210,35 +206,6 @@ class _DashboardTabState extends State<DashboardTab> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _loanCheckinCard() {
-    return GestureDetector(
-      onTap: () async {
-        await Navigator.push(context, MaterialPageRoute(builder: (_) => LoanCheckinScreen(message: _checkin?['message']?.toString())));
-        _load();
-      },
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: UiColors.goldBg,
-          borderRadius: BorderRadius.circular(AppDimens.radiusCard),
-          border: Border.all(color: AppColors.primaryGold.withValues(alpha: 0.4)),
-        ),
-        child: Row(children: [
-          const Icon(Icons.home_work_outlined, color: AppColors.primaryGold, size: 26),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Is your loan still competitive?', style: AppTextStyles.labelLarge.copyWith(fontWeight: FontWeight.w700)),
-              const SizedBox(height: 2),
-              Text('Request a free review with your broker', style: AppTextStyles.labelSmall),
-            ]),
-          ),
-          const Icon(Icons.arrow_forward_rounded, color: AppColors.primaryGold),
-        ]),
-      ),
     );
   }
 
@@ -318,16 +285,7 @@ class _DashboardTabState extends State<DashboardTab> {
             ),
           ),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(child: Text(progressText, style: AppTextStyles.labelSmall)),
-              GestureDetector(
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => TiersScreen(currentTier: tierName))),
-                child: Text('What do tiers give me?',
-                    style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGold, fontWeight: FontWeight.w600)),
-              ),
-            ],
-          ),
+          Text(progressText, style: AppTextStyles.labelSmall),
         ],
       ),
     );
@@ -403,15 +361,15 @@ class ActivityRow extends StatelessWidget {
 }
 
 // ----------------- All activity (points statement) ----------------- //
-class ActivityScreen extends StatefulWidget {
+class PointsHistoryList extends StatefulWidget {
   final List<dynamic>? initial;
-  const ActivityScreen({Key? key, this.initial}) : super(key: key);
+  const PointsHistoryList({Key? key, this.initial}) : super(key: key);
 
   @override
-  State<ActivityScreen> createState() => _ActivityScreenState();
+  State<PointsHistoryList> createState() => _PointsHistoryListState();
 }
 
-class _ActivityScreenState extends State<ActivityScreen> {
+class _PointsHistoryListState extends State<PointsHistoryList> {
   List<dynamic> _items = [];
   bool _loading = true;
 
@@ -434,36 +392,59 @@ class _ActivityScreenState extends State<ActivityScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Points history')),
-      body: _loading
-          ? const FriendlyLoader(message: 'Loading your points history…')
-          : RefreshIndicator(
-              color: AppColors.primaryGold,
-              onRefresh: _load,
-              child: _items.isEmpty
-                  ? ListView(children: [
-                      const SizedBox(height: 120),
-                      Center(child: Text('No activity yet', style: AppTextStyles.labelMedium)),
-                    ])
-                  : ListView(
-                      padding: const EdgeInsets.all(AppDimens.pageMargin),
-                      children: _items.map((a) => ActivityRow(item: a)).toList(),
-                    ),
-            ),
+    return _loading
+        ? const FriendlyLoader(message: 'Loading your points history…')
+        : RefreshIndicator(
+            color: AppColors.primaryGold,
+            onRefresh: _load,
+            child: _items.isEmpty
+                ? ListView(children: [
+                    const SizedBox(height: 120),
+                    Center(child: Text('No activity yet', style: AppTextStyles.labelMedium)),
+                  ])
+                : ListView(
+                    padding: const EdgeInsets.all(AppDimens.pageMargin),
+                    children: _items.map((a) => ActivityRow(item: a)).toList(),
+                  ),
+          );
+  }
+}
+
+// ----------------- Notifications (bell): Updates + full points history ----------------- //
+class NotificationsScreen extends StatelessWidget {
+  final bool showHistory;
+  final List<dynamic>? history;
+  const NotificationsScreen({Key? key, this.showHistory = false, this.history}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 2,
+      initialIndex: showHistory ? 1 : 0,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Notifications'),
+          bottom: const TabBar(
+            indicatorColor: AppColors.primaryGold,
+            labelColor: AppColors.primaryGold,
+            unselectedLabelColor: AppColors.textSecondary,
+            tabs: [Tab(text: 'Updates'), Tab(text: 'Points history')],
+          ),
+        ),
+        body: TabBarView(children: [const UpdatesList(), PointsHistoryList(initial: history)]),
+      ),
     );
   }
 }
 
-// ----------------- Notifications ----------------- //
-class NotificationsScreen extends StatefulWidget {
-  const NotificationsScreen({Key? key}) : super(key: key);
+class UpdatesList extends StatefulWidget {
+  const UpdatesList({Key? key}) : super(key: key);
 
   @override
-  State<NotificationsScreen> createState() => _NotificationsScreenState();
+  State<UpdatesList> createState() => _UpdatesListState();
 }
 
-class _NotificationsScreenState extends State<NotificationsScreen> {
+class _UpdatesListState extends State<UpdatesList> {
   final ApiService _api = ApiService();
   List<dynamic> _items = [];
   bool _loading = true;
@@ -503,9 +484,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Updates')),
-      body: _loading
+    return _loading
           ? const FriendlyLoader(message: 'Checking for updates…')
           : RefreshIndicator(
               color: AppColors.primaryGold,
@@ -573,8 +552,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         );
                       },
                     ),
-            ),
-    );
+            );
   }
 
   /// "Slides: https://…" lines in event thank-yous become link buttons.
@@ -596,28 +574,44 @@ class TiersScreen extends StatefulWidget {
 class _TiersScreenState extends State<TiersScreen> {
   List<dynamic> _tiers = [];
   String _basis = 'lifetime';
+  String _intro = '';
+  String? _currentTier;
   bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    ApiService().getTiers().then((res) {
-      if (!mounted) return;
-      setState(() {
-        if (res['success'] && res['data'] is Map) {
-          _tiers = (res['data']['tiers'] as List?) ?? [];
-          _basis = (res['data']['basis'] ?? 'lifetime').toString();
-        }
-        _loading = false;
-      });
+    _currentTier = widget.currentTier;
+    _load();
+  }
+
+  Future<void> _load() async {
+    final api = ApiService();
+    final results = await Future.wait([api.getTiers(), if (_currentTier == null) api.getMe()]);
+    if (!mounted) return;
+    setState(() {
+      final res = results[0];
+      if (res['success'] && res['data'] is Map) {
+        _tiers = (res['data']['tiers'] as List?) ?? [];
+        _basis = (res['data']['basis'] ?? 'lifetime').toString();
+        _intro = (res['data']['intro'] ?? '').toString().trim();
+      }
+      if (results.length > 1 && results[1]['success'] == true && results[1]['data'] is Map) {
+        final tier = results[1]['data']['tier'];
+        if (tier is Map) _currentTier = tier['name']?.toString();
+      }
+      _loading = false;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final basisText = _basis == 'balance'
-        ? 'Your tier is based on your current points balance.'
-        : 'Your tier is based on all the points you\'ve earned, so redeeming rewards never moves you down.';
+    // Staff can write their own intro on the admin website (Help & Contact → Member tiers).
+    final basisText = _intro.isNotEmpty
+        ? _intro
+        : _basis == 'balance'
+            ? 'Your tier is based on your current points balance.'
+            : 'Your tier is based on all the points you\'ve earned, so redeeming rewards never moves you down.';
     return Scaffold(
       appBar: AppBar(title: const Text('Member tiers')),
       body: _loading
@@ -628,7 +622,7 @@ class _TiersScreenState extends State<TiersScreen> {
                 Text(basisText, style: AppTextStyles.bodyMedium),
                 const SizedBox(height: 20),
                 ..._tiers.map((t) {
-                  final isCurrent = t['name'] == widget.currentTier;
+                  final isCurrent = t['name'] == _currentTier;
                   final benefits = (t['benefits'] as List?) ?? [];
                   return Container(
                     margin: const EdgeInsets.only(bottom: 14),

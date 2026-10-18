@@ -50,7 +50,7 @@ void main() {
 
   testWidgets('broker card: Book a time always, Call/Email once staff add them', (tester) async {
     await tester.pumpWidget(_app(const BrokerCard(info: ProgramContact())));
-    expect(find.text('Talk to my broker'), findsOneWidget);
+    expect(find.text('Contact us'), findsOneWidget); // title staff can change on the admin website
     expect(find.text('Book a time'), findsOneWidget);
     expect(find.text('Call'), findsNothing);
 

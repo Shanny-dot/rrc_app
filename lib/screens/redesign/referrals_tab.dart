@@ -10,20 +10,20 @@ import '../dashboard_screens.dart' show ReferFormScreen;
 import '../import_contacts_screen.dart';
 import '../../widgets/loading.dart';
 
-/// The five stages shown on each referral card.
-const kReferralSteps = ['Invited', 'Contacted', 'Loan in\nprogress', 'Settled', 'Points\nadded'];
+/// The three stages shown on each referral card.
+const kReferralSteps = ['Invited', 'Pending /\nsigned up', 'Points added\nto account'];
 
 /// How many steps are complete for a backend status.
 int completedSteps(String status) {
   switch (status) {
-    case 'contacted':
+    case 'registered':
+    case 'contacted': // older, more detailed stages count as the middle one
     case 'loan_in_progress':
-      return 2;
     case 'settled':
-      return 4;
+      return 2;
     case 'rewarded':
-      return 5;
-    default: // pending, invited, registered, closed
+      return 3;
+    default: // pending, invited, closed
       return 1;
   }
 }
@@ -31,19 +31,17 @@ int completedSteps(String status) {
 String referralStatusLabel(String status) {
   switch (status) {
     case 'registered':
-      return 'Joined the app';
+      return 'Signed up';
     case 'contacted':
-      return 'Contacted';
     case 'loan_in_progress':
-      return 'Loan in progress';
     case 'settled':
-      return 'Settled';
+      return 'Pending';
     case 'rewarded':
       return 'Points added';
     case 'closed':
       return 'Not proceeding';
     default:
-      return 'Invitation sent';
+      return 'Invited';
   }
 }
 
@@ -113,8 +111,8 @@ class _ReferralsTabState extends State<ReferralsTab> {
     final earned = Fmt.toInt(_summary['points_earned']);
     final perReferral = Fmt.toInt(_summary['points_per_referral']);
     final rule = perReferral > 0
-        ? 'Earn ${Fmt.number(perReferral)} points for every friend whose home loan settles with Reliance.'
-        : 'Earn points for every friend whose home loan settles with Reliance.';
+        ? 'Earn ${Fmt.number(perReferral)} points for every friend you refer to Reliance.'
+        : 'Earn points for every friend you refer to Reliance.';
 
     return Scaffold(
       body: SafeArea(
@@ -156,17 +154,22 @@ class _ReferralsTabState extends State<ReferralsTab> {
                         child: OutlineAction(text: 'Email', icon: Icons.mail_outline_rounded, color: AppColors.primaryGold, onPressed: () => _startInvite(InviteChannel.email)),
                       ),
                     ]),
-                    const SizedBox(height: 12),
-                    Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      _link('Enter details manually', () async {
-                        final ok = await Navigator.push(context, MaterialPageRoute(builder: (_) => const ReferFormScreen()));
-                        if (ok == true) _load();
-                      }),
-                      const SizedBox(width: 24),
-                      _link('Import contacts', () async {
-                        await Navigator.push(context, MaterialPageRoute(builder: (_) => const ImportContactsScreen()));
-                        _load();
-                      }),
+                    const SizedBox(height: 4),
+                    // Two equal halves, so each link sits centred under the button above it.
+                    Row(children: [
+                      Expanded(
+                        child: _link('Enter details manually', () async {
+                          final ok = await Navigator.push(context, MaterialPageRoute(builder: (_) => const ReferFormScreen()));
+                          if (ok == true) _load();
+                        }),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _link('Import contacts', () async {
+                          await Navigator.push(context, MaterialPageRoute(builder: (_) => const ImportContactsScreen()));
+                          _load();
+                        }),
+                      ),
                     ]),
                     const SizedBox(height: 28),
                     Row(
@@ -195,9 +198,17 @@ class _ReferralsTabState extends State<ReferralsTab> {
     );
   }
 
-  Widget _link(String text, VoidCallback onTap) => GestureDetector(
+  Widget _link(String text, VoidCallback onTap) => InkWell(
         onTap: onTap,
-        child: Text(text, style: AppTextStyles.labelMedium.copyWith(color: AppColors.textPrimary, decoration: TextDecoration.underline)),
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Text(text,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.labelMedium.copyWith(color: AppColors.textPrimary, decoration: TextDecoration.underline)),
+        ),
       );
 }
 
@@ -239,7 +250,7 @@ class ReferralCard extends StatelessWidget {
 }
 
 class _Stepper extends StatelessWidget {
-  final int done; // number of completed steps (1–5)
+  final int done; // number of completed steps (1–3)
   const _Stepper({required this.done});
 
   @override
@@ -260,7 +271,7 @@ class _Stepper extends StatelessWidget {
       const SizedBox(height: 6),
       // Labels centred under their dots (positions match the dot row above).
       LayoutBuilder(builder: (context, c) {
-        const labelW = 64.0;
+        const labelW = 96.0;
         final w = c.maxWidth;
         final step = (w - dot) / (kReferralSteps.length - 1);
         return SizedBox(
@@ -352,9 +363,8 @@ class _InviteFriendSheetState extends State<InviteFriendSheet> {
     final first = friendName.trim().split(' ').first;
     final code = (widget.summary['referral_code'] ?? '').toString();
     final link = (widget.summary['invite_link'] ?? '').toString();
-    final buf = StringBuffer('Hi $first, I\'m a Reliance client and thought they could help you with your home loan. ');
-    buf.write('A Reliance broker will be in touch');
-    if (code.isNotEmpty) buf.write(', and you can join Reliance Rewards with my code $code');
+    final buf = StringBuffer('Hi $first, I\'m a member of Reliance Rewards and think you\'d enjoy it too');
+    if (code.isNotEmpty) buf.write(' — join with my referral code $code');
     buf.write('.');
     if (link.isNotEmpty) buf.write(' $link');
     return buf.toString();
@@ -398,21 +408,26 @@ class _InviteFriendSheetState extends State<InviteFriendSheet> {
       return;
     }
 
+    // Email invitations are sent by us from no-reply. If that isn't possible right now,
+    // the member's own mail app opens with the message ready instead.
+    final emailedByUs = _isEmail && res['data'] is Map && res['data']['invite_emailed'] == true;
     final message = _message(name);
     try {
-      if (_isEmail) {
-        final uri = Uri.parse('mailto:$contact?subject=${Uri.encodeComponent('An introduction to Reliance')}'
+      if (_isEmail && !emailedByUs) {
+        final uri = Uri.parse('mailto:$contact?subject=${Uri.encodeComponent('An invitation to Reliance Rewards')}'
             '&body=${Uri.encodeComponent(message)}');
         await launchUrl(uri);
-      } else {
-        await SharePlus.instance.share(ShareParams(text: message, subject: 'An introduction to Reliance'));
+      } else if (!_isEmail) {
+        await SharePlus.instance.share(ShareParams(text: message, subject: 'An invitation to Reliance Rewards'));
       }
     } catch (e) {
       debugPrint('Share error: $e');
     }
     if (!mounted) return;
     Navigator.pop(context, true);
-    showToast(context, 'Thanks! We\'ve added $name to your referrals. A Reliance broker will be in touch with them.');
+    showToast(context, emailedByUs
+        ? 'Invitation emailed to $name. We\'ve added them to your referrals.'
+        : 'Thanks! We\'ve added $name to your referrals.');
   }
 
   @override
@@ -429,7 +444,7 @@ class _InviteFriendSheetState extends State<InviteFriendSheet> {
           const SizedBox(height: 6),
           Text(
             _isEmail
-                ? 'We\'ll open your email app with a message ready to send.'
+                ? 'We\'ll email your friend an invitation with your referral code.'
                 : 'We\'ll open your phone\'s share options so you can send it by SMS, WhatsApp or another app.',
             style: AppTextStyles.bodyMedium,
           ),
@@ -458,7 +473,7 @@ class _InviteFriendSheetState extends State<InviteFriendSheet> {
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.only(top: 12),
-                  child: Text('My friend is happy to be contacted by Reliance about their home loan.', style: AppTextStyles.bodyMedium),
+                  child: Text('My friend is happy to be contacted by Reliance.', style: AppTextStyles.bodyMedium),
                 ),
               ),
             ]),
@@ -472,7 +487,7 @@ class _InviteFriendSheetState extends State<InviteFriendSheet> {
             width: double.infinity,
             child: _sending
                 ? const Center(child: CircularProgressIndicator(color: AppColors.primaryGold))
-                : FilledAction(text: _isEmail ? 'Continue to email' : 'Continue to share', onPressed: _continue),
+                : FilledAction(text: _isEmail ? 'Send invitation' : 'Continue to share', onPressed: _continue),
           ),
         ],
       ),

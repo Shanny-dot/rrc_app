@@ -4,6 +4,9 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'invite_code.dart';
 
+/// Result of renewing the saved sign-in when the app opens.
+enum SessionCheck { renewed, rejected, unreachable }
+
 class ApiService {
   // Production API URL
   static String get baseUrl => 'https://rrc-backend-1dmv.onrender.com';
@@ -59,6 +62,22 @@ class ApiService {
     } catch (e) {
       return false;
     }
+  }
+
+  /// Swaps the saved token for a fresh long-lived one, so members who open the app now
+  /// and then are never signed out.
+  Future<SessionCheck> refreshSession() async {
+    final headers = await _getHeaders();
+    if (!headers.containsKey('Authorization')) return SessionCheck.rejected;
+    final response = await _safeRequest(() => http.post(Uri.parse('$baseUrl/api/v1/auth/refresh'), headers: headers));
+    if (response.statusCode == 200) {
+      try {
+        final token = jsonDecode(response.body)['access_token'];
+        if (token is String && token.isNotEmpty) await saveToken(token);
+      } catch (_) {}
+      return SessionCheck.renewed;
+    }
+    return response.statusCode == 401 || response.statusCode == 403 ? SessionCheck.rejected : SessionCheck.unreachable;
   }
 
   // Safe HTTP request helper with built-in 45-second timeout and exception handling (accommodates Render free tier cold starts)

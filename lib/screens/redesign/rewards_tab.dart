@@ -189,7 +189,7 @@ class _RewardsTabState extends State<RewardsTab> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppDimens.pageMargin),
               child: DarkTextField(
-                hint: 'Search rewards, e.g. movie, Woolworths',
+                hint: 'Search rewards',
                 controller: _search,
                 prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textSecondary),
                 suffixIcon: _query.isEmpty

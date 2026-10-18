@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../services/api_service.dart';
-import '../../services/app_lock.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/core_widgets.dart';
@@ -21,7 +21,7 @@ class ProfileOptions {
     'Hospitality & Tourism', 'Information Technology', 'Legal', 'Manufacturing', 'Real Estate',
     'Retail', 'Self-employed / Business owner', 'Transport & Logistics', 'Retired', 'Other',
   ];
-  static const homeOwnership = ['Own outright', 'Own with a mortgage', 'Renting', 'Living with family', 'Other'];
+  static const homeOwnership = ['Own outright', 'Own with a mortgage', 'Renting/boarding', 'Other'];
   static const incomes = [
     'Under \$50,000', '\$50,000 – \$100,000', '\$100,000 – \$150,000', '\$150,000 – \$200,000', '\$200,000 – \$300,000',
     'Over \$300,000', 'Prefer not to say',
@@ -38,8 +38,8 @@ class ProfileOptions {
     if (identical(options, homeOwnership)) {
       if (l.contains('mortgag')) return 'Own with a mortgage';
       if (l.contains('owner') || l.contains('outright') || l == 'own') return 'Own outright';
-      if (l.contains('rent')) return 'Renting';
-      if (l.contains('family') || l.contains('parent')) return 'Living with family';
+      if (l.contains('rent') || l.contains('board')) return 'Renting/boarding';
+      return 'Other'; // e.g. "Living with family" from the earlier list
     }
     if (identical(options, genders) && (l == 'non-binary' || l == 'nonbinary')) return 'Non-binary';
     if (identical(options, incomes)) {
@@ -84,34 +84,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _income;
   String _referralCode = '';
 
-  bool _lockAvailable = false;
-  bool _lockEnabled = false;
-  String _lockLabel = 'Face ID';
-
   @override
   void initState() {
     super.initState();
     _load();
-    _loadLock();
-  }
-
-  Future<void> _loadLock() async {
-    final available = await AppLock.isAvailable();
-    final enabled = await AppLock.isEnabled();
-    final label = await AppLock.label();
-    if (!mounted) return;
-    setState(() {
-      _lockAvailable = available;
-      _lockEnabled = enabled;
-      _lockLabel = label;
-    });
-  }
-
-  Future<void> _toggleLock(bool on) async {
-    // Confirm with the biometric itself before turning it on, so members can't lock themselves out.
-    if (on && !await AppLock.authenticate("Confirm it's you to turn on $_lockLabel")) return;
-    await AppLock.setEnabled(on);
-    if (mounted) setState(() => _lockEnabled = on);
   }
 
   @override
@@ -316,12 +292,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             label: 'Your referral code',
                             child: Container(
                               height: 56,
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              padding: const EdgeInsets.only(left: 16, right: 4),
                               decoration: BoxDecoration(color: AppColors.inputFill, borderRadius: BorderRadius.circular(AppDimens.radiusInput)),
                               child: Row(children: [
                                 Expanded(child: Text(_referralCode, style: const TextStyle(color: AppColors.primaryGold, fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 1.5))),
+                                TextButton.icon(
+                                  onPressed: () async {
+                                    await Clipboard.setData(ClipboardData(text: _referralCode));
+                                    if (mounted) showToast(context, 'Referral code copied.');
+                                  },
+                                  icon: const Icon(Icons.copy_rounded, size: 18),
+                                  label: const Text('Copy'),
+                                  style: TextButton.styleFrom(foregroundColor: AppColors.primaryGold),
+                                ),
                               ]),
                             ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Friends type this code in the "Referral code" box when they create their account, so they\'re linked to you. '
+                            'Invites you send from the Referrals tab include it automatically.',
+                            style: AppTextStyles.labelSmall,
                           ),
                         ],
                         const SizedBox(height: 18),
@@ -349,15 +340,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         const SizedBox(height: 14),
                         LabeledField(label: 'Annual income range', child: _dropdown('Select', _income, ProfileOptions.incomes, (v) => setState(() => _income = v))),
                         const SizedBox(height: 18),
-                        const SectionLabel('Security & help'),
-                        if (_lockAvailable)
-                          _settingsTile(
-                            icon: _lockLabel == 'Face ID' ? Icons.face_retouching_natural : Icons.fingerprint_rounded,
-                            title: 'Unlock with $_lockLabel',
-                            subtitle: 'Ask for $_lockLabel when you open the app',
-                            trailing: Switch(value: _lockEnabled, activeThumbColor: AppColors.primaryGold, onChanged: _toggleLock),
-                            onTap: () => _toggleLock(!_lockEnabled),
-                          ),
+                        const SectionLabel('Settings & help'),
                         _settingsTile(
                           icon: Icons.notifications_none_rounded,
                           title: 'Notifications',
