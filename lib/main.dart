@@ -17,7 +17,7 @@ Future<void> main() async {
   InviteCode.onLinkWhileRunning = (code) async {
     if (await ApiService().isLoggedIn()) {
       _messengerKey.currentState?.showSnackBar(const SnackBar(
-        content: Text('You\'re already a member — invite codes are for friends joining Reliance Rewards.'),
+        content: Text('You\'re already a member — invite codes are for friends joining Reliiance Rewards.'),
       ));
     } else {
       _navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => const QuickSignUpScreen()));

@@ -24,7 +24,7 @@ class ProgramContact {
 
   const ProgramContact({
     this.cardTitle = 'Contact us',
-    this.name = 'Your Reliance broker',
+    this.name = 'Your Reliiance broker',
     this.phone = '',
     this.email = '',
     this.bookingUrl = '',
@@ -54,7 +54,7 @@ class ProgramContact {
     String v(String key) => (c[key] ?? '').trim();
     return _cached = ProgramContact(
       cardTitle: v('contact_card_title').isEmpty ? 'Contact us' : v('contact_card_title'),
-      name: v('contact_name').isEmpty ? 'Your Reliance broker' : v('contact_name'),
+      name: v('contact_name').isEmpty ? 'Your Reliiance broker' : v('contact_name'),
       phone: v('contact_phone'),
       email: v('contact_email'),
       bookingUrl: v('contact_booking_url'),
@@ -79,7 +79,7 @@ Future<void> _open(BuildContext context, Uri uri) async {
 class BrokerActions extends StatelessWidget {
   final ProgramContact info;
   final String emailSubject;
-  const BrokerActions({Key? key, required this.info, this.emailSubject = 'Question from the Reliance Rewards app'}) : super(key: key);
+  const BrokerActions({Key? key, required this.info, this.emailSubject = 'Question from the Reliiance Rewards app'}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {

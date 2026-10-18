@@ -111,8 +111,8 @@ class _ReferralsTabState extends State<ReferralsTab> {
     final earned = Fmt.toInt(_summary['points_earned']);
     final perReferral = Fmt.toInt(_summary['points_per_referral']);
     final rule = perReferral > 0
-        ? 'Earn ${Fmt.number(perReferral)} points for every friend you refer to Reliance.'
-        : 'Earn points for every friend you refer to Reliance.';
+        ? 'Earn ${Fmt.number(perReferral)} points for every friend you refer to Reliiance.'
+        : 'Earn points for every friend you refer to Reliiance.';
 
     return Scaffold(
       body: SafeArea(
@@ -363,7 +363,7 @@ class _InviteFriendSheetState extends State<InviteFriendSheet> {
     final first = friendName.trim().split(' ').first;
     final code = (widget.summary['referral_code'] ?? '').toString();
     final link = (widget.summary['invite_link'] ?? '').toString();
-    final buf = StringBuffer('Hi $first, I\'m a member of Reliance Rewards and think you\'d enjoy it too');
+    final buf = StringBuffer('Hi $first, I\'m a member of Reliiance Rewards and think you\'d enjoy it too');
     if (code.isNotEmpty) buf.write(' — join with my referral code $code');
     buf.write('.');
     if (link.isNotEmpty) buf.write(' $link');
@@ -414,11 +414,11 @@ class _InviteFriendSheetState extends State<InviteFriendSheet> {
     final message = _message(name);
     try {
       if (_isEmail && !emailedByUs) {
-        final uri = Uri.parse('mailto:$contact?subject=${Uri.encodeComponent('An invitation to Reliance Rewards')}'
+        final uri = Uri.parse('mailto:$contact?subject=${Uri.encodeComponent('An invitation to Reliiance Rewards')}'
             '&body=${Uri.encodeComponent(message)}');
         await launchUrl(uri);
       } else if (!_isEmail) {
-        await SharePlus.instance.share(ShareParams(text: message, subject: 'An invitation to Reliance Rewards'));
+        await SharePlus.instance.share(ShareParams(text: message, subject: 'An invitation to Reliiance Rewards'));
       }
     } catch (e) {
       debugPrint('Share error: $e');
@@ -473,7 +473,7 @@ class _InviteFriendSheetState extends State<InviteFriendSheet> {
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.only(top: 12),
-                  child: Text('My friend is happy to be contacted by Reliance.', style: AppTextStyles.bodyMedium),
+                  child: Text('My friend is happy to be contacted by Reliiance.', style: AppTextStyles.bodyMedium),
                 ),
               ),
             ]),

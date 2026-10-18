@@ -67,7 +67,7 @@ Future<bool> cancelEventRsvp(BuildContext context, String id, String title) asyn
 void addEventToCalendar(dynamic e) {
   final start = Fmt.parse(e['event_date']) ?? DateTime.now();
   cal.Add2Calendar.addEvent2Cal(cal.Event(
-    title: (e['title'] ?? 'Reliance event').toString(),
+    title: (e['title'] ?? 'Reliiance event').toString(),
     description: (e['description'] ?? '').toString(),
     location: (e['location'] ?? '').toString(),
     startDate: start,

@@ -13,10 +13,10 @@ class _TourPage {
 }
 
 const _pages = [
-  _TourPage(Icons.workspace_premium_outlined, 'Welcome to Reliance Rewards',
-      'A thank-you for being part of the Reliance family. Here\'s how it works in three quick steps.'),
+  _TourPage(Icons.workspace_premium_outlined, 'Welcome to Reliiance Rewards',
+      'A thank-you for being part of the Reliiance family. Here\'s how it works in three quick steps.'),
   _TourPage(Icons.stars_rounded, 'Earn points',
-      'Collect points when friends you refer settle a home loan, when you attend Reliance events, and with surprise bonuses along the way.'),
+      'Collect points when friends you refer settle a home loan, when you attend Reliiance events, and with surprise bonuses along the way.'),
   _TourPage(Icons.person_add_alt_1_rounded, 'Refer in a tap',
       'Share your personal code by SMS, WhatsApp or email from the Referrals tab, then follow each friend\'s progress right here.'),
   _TourPage(Icons.card_giftcard_rounded, 'Redeem rewards',

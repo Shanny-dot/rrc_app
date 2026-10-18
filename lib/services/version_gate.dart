@@ -73,7 +73,7 @@ class VersionGate {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surfaceCard,
         title: const Text('Update available'),
-        content: Text(message.isNotEmpty ? message : 'A new version of Reliance Rewards is ready with improvements to events, rewards and referrals.'),
+        content: Text(message.isNotEmpty ? message : 'A new version of Reliiance Rewards is ready with improvements to events, rewards and referrals.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Later', style: TextStyle(color: AppColors.textSecondary))),
           if (storeUrl.isNotEmpty)
@@ -117,7 +117,7 @@ class UpdateRequiredScreen extends StatelessWidget {
                 Text(
                   gate.message.isNotEmpty
                       ? gate.message
-                      : 'This version of Reliance Rewards is no longer supported. Please update to keep earning and redeeming points.',
+                      : 'This version of Reliiance Rewards is no longer supported. Please update to keep earning and redeeming points.',
                   textAlign: TextAlign.center,
                   style: AppTextStyles.bodyLarge,
                 ),

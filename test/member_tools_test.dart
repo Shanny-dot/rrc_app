@@ -37,7 +37,7 @@ void main() {
     )));
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
-    expect(find.text('Welcome to Reliance Rewards'), findsOneWidget);
+    expect(find.text('Welcome to Reliiance Rewards'), findsOneWidget);
     for (final title in ['Earn points', 'Refer in a tap', 'Redeem rewards']) {
       await tester.tap(find.text('Next'));
       await tester.pumpAndSettle();

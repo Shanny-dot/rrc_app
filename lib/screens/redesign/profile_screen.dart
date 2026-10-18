@@ -11,7 +11,7 @@ import 'feedback_screen.dart';
 import 'help_screen.dart';
 import 'notification_settings_screen.dart';
 
-/// Drop-down options. Placeholder lists until Reliance confirms the official ones —
+/// Drop-down options. Placeholder lists until Reliiance confirms the official ones —
 /// keep the values in step with the admin website.
 class ProfileOptions {
   static const genders = ['Male', 'Female', 'Non-binary', 'Prefer not to say'];

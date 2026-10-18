@@ -163,7 +163,7 @@ class _ReferFormScreenState extends State<ReferFormScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('We\'ve added $name to your referrals. A Reliance broker will contact them, '
+              Text('We\'ve added $name to your referrals. A Reliiance broker will contact them, '
                   'and you can follow their progress on the Referrals screen.'),
               const SizedBox(height: 18),
               Text('Want to talk it through with your broker?', style: AppTextStyles.labelMedium),
@@ -188,7 +188,7 @@ class _ReferFormScreenState extends State<ReferFormScreen> {
         child: ListView(
           padding: const EdgeInsets.all(AppDimens.pageMargin),
           children: [
-            Text('Tell us who to contact. A Reliance broker will reach out to see how they can help.', style: AppTextStyles.bodyMedium),
+            Text('Tell us who to contact. A Reliiance broker will reach out to see how they can help.', style: AppTextStyles.bodyMedium),
             const SizedBox(height: 20),
             LabeledField(label: 'Friend\'s name', child: DarkTextField(hint: 'Full name', controller: _nameController)),
             const SizedBox(height: 14),
@@ -214,7 +214,7 @@ class _ReferFormScreenState extends State<ReferFormScreen> {
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.only(top: 12),
-                    child: Text('My friend is happy to be contacted by Reliance about their home loan.', style: AppTextStyles.bodyMedium),
+                    child: Text('My friend is happy to be contacted by Reliiance about their home loan.', style: AppTextStyles.bodyMedium),
                   ),
                 ),
               ]),
