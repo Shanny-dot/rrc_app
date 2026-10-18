@@ -3,12 +3,11 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import 'ui_kit.dart';
 
-/// Placeholder layouts shown while a screen loads, shaped like the content that's coming.
+/// Kept so existing screens can still say what kind of page is loading (no longer drawn).
 enum SkeletonLayout { home, list, cards, form }
 
-/// Friendly loading state: pulsing placeholders in the shape of the screen, plus a short
-/// message. If loading takes a while (the server can take ~30s to wake up), the message
-/// changes to explain the wait instead of leaving the member staring at a spinner.
+/// Friendly loading state: the pulsing gold "R" plus a short message. If loading takes a
+/// while (the server can take ~30s to wake up), the message changes to explain the wait.
 class FriendlyLoader extends StatefulWidget {
   final String message;
   final SkeletonLayout layout;
@@ -18,14 +17,12 @@ class FriendlyLoader extends StatefulWidget {
   State<FriendlyLoader> createState() => _FriendlyLoaderState();
 }
 
-class _FriendlyLoaderState extends State<FriendlyLoader> with SingleTickerProviderStateMixin {
+class _FriendlyLoaderState extends State<FriendlyLoader> {
   static const _slowMessages = [
     'Still working on it — this can take up to 30 seconds the first time.',
     'Almost there. Thanks for your patience!',
   ];
 
-  late final AnimationController _pulse =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 900))..repeat(reverse: true);
   Timer? _timer;
   int _stage = 0;
 
@@ -40,97 +37,89 @@ class _FriendlyLoaderState extends State<FriendlyLoader> with SingleTickerProvid
   @override
   void dispose() {
     _timer?.cancel();
-    _pulse.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final message = _stage == 0 ? widget.message : _slowMessages[_stage - 1];
-    return ListView(
-      physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(AppDimens.pageMargin, 16, AppDimens.pageMargin, 24),
-      children: [
-        Row(children: [
-          const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryGold)),
-          const SizedBox(width: 12),
-          Expanded(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              child: Text(message, key: ValueKey(message), style: AppTextStyles.labelMedium),
-            ),
+    // The brand's gold "R", gently pulsing, with a short message underneath.
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppDimens.pageMargin * 2),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const BrandPulse(size: 88),
+          const SizedBox(height: 24),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            child: Text(message, key: ValueKey(message), textAlign: TextAlign.center, style: AppTextStyles.labelMedium),
           ),
         ]),
-        const SizedBox(height: 20),
-        FadeTransition(
-          opacity: Tween(begin: 0.45, end: 1.0).animate(_pulse),
-          child: _skeleton(widget.layout),
-        ),
-      ],
+      ),
     );
-  }
-
-  Widget _skeleton(SkeletonLayout layout) {
-    switch (layout) {
-      case SkeletonLayout.home:
-        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Row(children: [
-            _Block(width: 48, height: 48, radius: 24),
-            SizedBox(width: 12),
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              _Block(width: 90, height: 12),
-              SizedBox(height: 8),
-              _Block(width: 130, height: 18),
-            ]),
-          ]),
-          const SizedBox(height: 20),
-          const _Block(height: 170, radius: 20),
-          const SizedBox(height: 16),
-          const Row(children: [
-            Expanded(child: _Block(height: 92)),
-            SizedBox(width: 12),
-            Expanded(child: _Block(height: 92)),
-            SizedBox(width: 12),
-            Expanded(child: _Block(height: 92)),
-          ]),
-          const SizedBox(height: 28),
-          const _Block(width: 140, height: 18),
-          const SizedBox(height: 14),
-          for (int i = 0; i < 3; i++) ...[const _Block(height: 72), const SizedBox(height: 12)],
-        ]);
-      case SkeletonLayout.cards:
-        return Column(children: [
-          for (int i = 0; i < 3; i++) ...[const _Block(height: 200), const SizedBox(height: 16)],
-        ]);
-      case SkeletonLayout.form:
-        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          for (int i = 0; i < 5; i++) ...[
-            const _Block(width: 110, height: 12),
-            const SizedBox(height: 8),
-            const _Block(height: 56, radius: 10),
-            const SizedBox(height: 16),
-          ],
-        ]);
-      case SkeletonLayout.list:
-        return Column(children: [
-          for (int i = 0; i < 6; i++) ...[const _Block(height: 76), const SizedBox(height: 12)],
-        ]);
-    }
   }
 }
 
-class _Block extends StatelessWidget {
-  final double? width;
-  final double height;
-  final double radius;
-  const _Block({this.width, required this.height, this.radius = AppDimens.radiusCard});
+/// The full Reliiance Rewards logo (gold "R" and wordmark), for the splash and sign-in screens.
+class BrandLogo extends StatelessWidget {
+  final double width;
+  const BrandLogo({Key? key, this.width = 260}) : super(key: key);
+
+  static const asset = 'assets/images/logo_full.png';
 
   @override
-  Widget build(BuildContext context) => Container(
-        width: width ?? double.infinity,
-        height: height,
-        decoration: BoxDecoration(color: AppColors.surfaceCard, borderRadius: BorderRadius.circular(radius)),
-      );
+  Widget build(BuildContext context) =>
+      Image.asset(asset, width: width, fit: BoxFit.contain, semanticLabel: 'Reliiance Rewards');
+}
+
+/// The gold "R" from the Reliiance Rewards logo, breathing in and out — the app's loading mark.
+class BrandPulse extends StatefulWidget {
+  final double size;
+  const BrandPulse({Key? key, this.size = 88}) : super(key: key);
+
+  static const asset = 'assets/images/logo_r.png';
+
+  @override
+  State<BrandPulse> createState() => _BrandPulseState();
+}
+
+class _BrandPulseState extends State<BrandPulse> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1100))
+    ..repeat(reverse: true);
+  late final Animation<double> _t = CurvedAnimation(parent: _c, curve: Curves.easeInOut);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _t,
+      builder: (_, child) => Opacity(
+        opacity: 0.55 + 0.45 * _t.value,
+        child: Transform.scale(scale: 0.92 + 0.08 * _t.value, child: child),
+      ),
+      child: Container(
+        width: widget.size * 1.5,
+        height: widget.size * 1.5,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          boxShadow: [BoxShadow(color: AppColors.primaryGold.withValues(alpha: 0.18), blurRadius: 40, spreadRadius: 4)],
+        ),
+        child: Image.asset(
+          BrandPulse.asset,
+          width: widget.size,
+          height: widget.size,
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) => Icon(Icons.star_rounded, color: AppColors.primaryGold, size: widget.size * 0.7),
+        ),
+      ),
+    );
+  }
 }
 
 /// Friendly "couldn't load" state with a retry button, used instead of an empty screen.

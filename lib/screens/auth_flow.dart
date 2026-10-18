@@ -10,6 +10,7 @@ import '../services/api_service.dart';
 import '../services/version_gate.dart';
 import '../services/invite_code.dart';
 import '../services/social_config.dart';
+import '../widgets/loading.dart' show BrandLogo, BrandPulse;
 
 // ----------------- Auth flow ----------------- //
 
@@ -100,42 +101,16 @@ class _SplashScreenState extends State<SplashScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Gold ambient glow layer + clipped logo — no visible hard edges
-              Container(
-                width: 180,
-                height: 180,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(36),
-                  boxShadow: [
-                    // Soft gold ambient glow
-                    BoxShadow(
-                      color: AppColors.primaryGold.withOpacity(0.35),
-                      blurRadius: 50,
-                      spreadRadius: 8,
-                    ),
-                    // Darker inner shadow for depth
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.6),
-                      blurRadius: 20,
-                      spreadRadius: -4,
-                    ),
-                  ],
+              // The full Reliiance Rewards logo, fading in.
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0, end: 1),
+                duration: const Duration(milliseconds: 900),
+                curve: Curves.easeOut,
+                builder: (_, t, child) => Opacity(opacity: t, child: Transform.scale(scale: 0.94 + 0.06 * t, child: child)),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 36),
+                  child: BrandLogo(width: 320),
                 ),
-                child: ClipRRect(
-                  // Match the PNG logo's own rounded corner radius
-                  borderRadius: BorderRadius.circular(36),
-                  child: Image.asset(
-                    'assets/images/rrc_logo.png',
-                    width: 180,
-                    height: 180,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 36),
-              Text(
-                'EXCLUSIVE REWARDS',
-                style: AppTextStyles.labelMedium.copyWith(letterSpacing: 3),
               ),
             ],
           ),
@@ -386,6 +361,8 @@ class _QuickSignUpScreenState extends State<QuickSignUpScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const Center(child: BrandLogo(width: 220)),
+              const SizedBox(height: 28),
               Text('Join the Exclusive', style: AppTextStyles.h2),
               const SizedBox(height: 8),
               Text('Enter your details to request access.', style: AppTextStyles.bodyMedium),
@@ -670,6 +647,7 @@ class _WelcomeBonusScreenState extends State<WelcomeBonusScreen> with SingleTick
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   String _firstName = 'User';
+  int? _points; // a new member's balance is their welcome points (set on the admin website)
   bool _isLoadingName = true;
 
   @override
@@ -687,9 +665,11 @@ class _WelcomeBonusScreenState extends State<WelcomeBonusScreen> with SingleTick
       final res = await api.getMe();
       if (res['success'] && res['data'] != null) {
         final fullName = res['data']['full_name'] as String? ?? 'User';
+        final points = res['data']['total_points'];
         if (mounted) {
           setState(() {
             _firstName = fullName.split(' ').first;
+            if (points is num && points > 0) _points = points.toInt();
             _isLoadingName = false;
           });
         }
@@ -733,10 +713,13 @@ class _WelcomeBonusScreenState extends State<WelcomeBonusScreen> with SingleTick
                   ),
                   child: Column(
                     children: [
-                      const Icon(Icons.star_rounded, size: 60, color: AppColors.primaryGold),
+                      Image.asset(BrandPulse.asset, height: 64),
                       const SizedBox(height: 16),
-                      Text('+100', style: AppTextStyles.h1.copyWith(color: AppColors.primaryGold, fontSize: 48)),
-                      Text('POINTS EARNED', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGold, letterSpacing: 2)),
+                      if (_points != null) ...[
+                        Text('+$_points', style: AppTextStyles.h1.copyWith(color: AppColors.primaryGold, fontSize: 48)),
+                        Text('POINTS EARNED', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGold, letterSpacing: 2)),
+                      ] else
+                        Text('WELCOME', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryGold, letterSpacing: 2)),
                     ],
                   ),
                 ),
@@ -1029,12 +1012,19 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Login')),
+      // Scrolls when space is tight (small phones, keyboard open); otherwise the buttons sit at the bottom.
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(AppDimens.pageMargin),
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            padding: const EdgeInsets.all(AppDimens.pageMargin),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight - AppDimens.pageMargin * 2),
+              child: IntrinsicHeight(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const Center(child: BrandLogo(width: 220)),
+              const SizedBox(height: 28),
               Text('Welcome Back', style: AppTextStyles.h2),
               const SizedBox(height: 8),
               Row(
@@ -1104,6 +1094,9 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 16),
             ],
+          ),
+              ),
+            ),
           ),
         ),
       ),
