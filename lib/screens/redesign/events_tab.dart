@@ -484,6 +484,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     final location = (e['location'] ?? '').toString();
     final category = (e['category'] ?? '').toString();
     final description = (e['description'] ?? '').toString().trim();
+    final attendeeInfo = (e['attendee_info'] ?? '').toString().trim(); // parking, webinar link …
     final past = start != null && !start.isAfter(DateTime.now());
     final going = _rsvp != null;
     final attended = _rsvp?['attended'] == true;
@@ -511,6 +512,26 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                     const SizedBox(height: 8),
                     Text(description.isNotEmpty ? description : 'More details coming soon.',
                         style: AppTextStyles.bodyMedium.copyWith(height: 1.55)),
+                    if (attendeeInfo.isNotEmpty) ...[
+                      const SizedBox(height: 20),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: UiColors.goldBg,
+                          borderRadius: BorderRadius.circular(AppDimens.radiusCard),
+                        ),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Row(children: [
+                            const Icon(Icons.info_outline_rounded, color: AppColors.primaryGold, size: 20),
+                            const SizedBox(width: 8),
+                            Text('Good to know', style: AppTextStyles.labelLarge.copyWith(fontWeight: FontWeight.w700)),
+                          ]),
+                          const SizedBox(height: 8),
+                          SelectableText(attendeeInfo, style: AppTextStyles.bodyMedium.copyWith(height: 1.5, color: AppColors.textPrimary)),
+                        ]),
+                      ),
+                    ],
                     if (!past && _hasPoints(e, 'points_for_attending')) ...[
                       const SizedBox(height: 20),
                       Text('Collect your points on the day with the Check in button on the Events screen.',
