@@ -1027,29 +1027,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 28),
               Text('Welcome Back', style: AppTextStyles.h2),
               const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Enter your credentials to continue.', style: AppTextStyles.bodyMedium),
-                  GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _emailController.text = 'shantanufadnavis5@gmail.com';
-                        _passwordController.text = 'Shaan@1109';
-                      });
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryGold.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppColors.primaryGold.withOpacity(0.4)),
-                      ),
-                      child: const Text('Demo Account', style: TextStyle(color: AppColors.primaryGold, fontSize: 11, fontWeight: FontWeight.bold)),
-                    ),
-                  ),
-                ],
-              ),
+              Text('Enter your details to continue.', style: AppTextStyles.bodyMedium),
               const SizedBox(height: 32),
               
               DarkTextField(hint: 'Email Address', keyboardType: TextInputType.emailAddress, controller: _emailController),
