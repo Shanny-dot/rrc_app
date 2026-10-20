@@ -213,19 +213,16 @@ class _QuickSignUpScreenState extends State<QuickSignUpScreen> {
     final apiService = ApiService();
     try {
       if (provider == 'google') {
-        if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Please use Sign in with Apple or Email to continue on iOS.')),
-            );
-          }
-          setState(() => _isLoading = false);
-          return;
-        }
-        final GoogleSignIn googleSignIn = GoogleSignIn(scopes: ['email']);
+        final GoogleSignIn googleSignIn = GoogleSignIn(
+          scopes: ['email'],
+          serverClientId: '785942700049-923gl843cc8uobness52hca3ebi2er2a.apps.googleusercontent.com',
+          clientId: (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS)
+              ? '785942700049-nsu5eo2srl353tg55olt0h53jshcses9.apps.googleusercontent.com'
+              : null,
+        );
         final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
         if (googleUser == null) {
-          setState(() => _isLoading = false);
+          if (mounted) setState(() => _isLoading = false);
           return;
         }
         final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
@@ -245,7 +242,7 @@ class _QuickSignUpScreenState extends State<QuickSignUpScreen> {
         } else {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Google Sign-In: ${res["error"]}')),
+              SnackBar(content: Text('Google Sign-In: ${res["error"] ?? "Authentication failed"}')),
             );
           }
         }
@@ -784,19 +781,16 @@ class _LoginScreenState extends State<LoginScreen> {
     final apiService = ApiService();
     try {
       if (provider == 'google') {
-        if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Please use Sign in with Apple or Email to continue on iOS.')),
-            );
-          }
-          setState(() => _isLoading = false);
-          return;
-        }
-        final GoogleSignIn googleSignIn = GoogleSignIn(scopes: ['email']);
+        final GoogleSignIn googleSignIn = GoogleSignIn(
+          scopes: ['email'],
+          serverClientId: '785942700049-923gl843cc8uobness52hca3ebi2er2a.apps.googleusercontent.com',
+          clientId: (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS)
+              ? '785942700049-nsu5eo2srl353tg55olt0h53jshcses9.apps.googleusercontent.com'
+              : null,
+        );
         final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
         if (googleUser == null) {
-          setState(() => _isLoading = false);
+          if (mounted) setState(() => _isLoading = false);
           return;
         }
         final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
@@ -816,7 +810,7 @@ class _LoginScreenState extends State<LoginScreen> {
         } else {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Google Sign-In: ${res["error"]}')),
+              SnackBar(content: Text('Google Sign-In: ${res["error"] ?? "Authentication failed"}')),
             );
           }
         }
@@ -1058,6 +1052,23 @@ class SocialLoginButtons extends StatelessWidget {
                 ],
               ),
             ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildSocialIcon(
+                icon: Icons.g_mobiledata_rounded,
+                label: 'Google',
+                onTap: () => onSocialSelect('google'),
+              ),
+              const SizedBox(width: 12),
+              _buildSocialIcon(
+                icon: Icons.facebook,
+                label: 'Facebook',
+                onTap: () => onSocialSelect('facebook'),
+              ),
+            ],
           ),
         ] else ...[
           Row(
