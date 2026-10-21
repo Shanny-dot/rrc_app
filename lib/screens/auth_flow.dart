@@ -10,7 +10,7 @@ import '../services/api_service.dart';
 import '../services/version_gate.dart';
 import '../services/invite_code.dart';
 import '../services/social_config.dart';
-import '../widgets/loading.dart' show BrandLogo, BrandPulse;
+import '../widgets/loading.dart' show BrandTile, BrandPulse;
 
 // ----------------- Auth flow ----------------- //
 
@@ -109,7 +109,7 @@ class _SplashScreenState extends State<SplashScreen> {
                 builder: (_, t, child) => Opacity(opacity: t, child: Transform.scale(scale: 0.94 + 0.06 * t, child: child)),
                 child: const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 36),
-                  child: BrandLogo(width: 320),
+                  child: BrandTile(size: 230),
                 ),
               ),
             ],
@@ -235,15 +235,6 @@ class _QuickSignUpScreenState extends State<QuickSignUpScreen> {
     final apiService = ApiService();
     try {
       if (provider == 'google') {
-        if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Please use Sign in with Apple or Email to continue on iOS.')),
-            );
-          }
-          setState(() => _isLoading = false);
-          return;
-        }
         final social = await SocialConfig.load();
         if (!social.googleReady) {
           if (mounted) {
@@ -252,8 +243,13 @@ class _QuickSignUpScreenState extends State<QuickSignUpScreen> {
           setState(() => _isLoading = false);
           return;
         }
-        // serverClientId (the Web client ID) makes Google return an ID token the backend can verify.
-        final GoogleSignIn googleSignIn = GoogleSignIn(scopes: ['email'], serverClientId: social.googleWebClientId);
+        // serverClientId (the Web client ID) makes Google return an ID token the backend can verify;
+        // iPhones also need their own iOS client ID (Firebase project rrc-app-6f899).
+        final GoogleSignIn googleSignIn = GoogleSignIn(
+          scopes: ['email'],
+          serverClientId: social.googleWebClientId,
+          clientId: (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) ? social.googleIosClientId : null,
+        );
         final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
         if (googleUser == null) {
           setState(() => _isLoading = false);
@@ -361,7 +357,7 @@ class _QuickSignUpScreenState extends State<QuickSignUpScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Center(child: BrandLogo(width: 220)),
+              const Center(child: BrandTile(size: 130)),
               const SizedBox(height: 28),
               Text('Join the Exclusive', style: AppTextStyles.h2),
               const SizedBox(height: 8),
@@ -848,15 +844,6 @@ class _LoginScreenState extends State<LoginScreen> {
     final apiService = ApiService();
     try {
       if (provider == 'google') {
-        if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Please use Sign in with Apple or Email to continue on iOS.')),
-            );
-          }
-          setState(() => _isLoading = false);
-          return;
-        }
         final social = await SocialConfig.load();
         if (!social.googleReady) {
           if (mounted) {
@@ -865,8 +852,13 @@ class _LoginScreenState extends State<LoginScreen> {
           setState(() => _isLoading = false);
           return;
         }
-        // serverClientId (the Web client ID) makes Google return an ID token the backend can verify.
-        final GoogleSignIn googleSignIn = GoogleSignIn(scopes: ['email'], serverClientId: social.googleWebClientId);
+        // serverClientId (the Web client ID) makes Google return an ID token the backend can verify;
+        // iPhones also need their own iOS client ID (Firebase project rrc-app-6f899).
+        final GoogleSignIn googleSignIn = GoogleSignIn(
+          scopes: ['email'],
+          serverClientId: social.googleWebClientId,
+          clientId: (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) ? social.googleIosClientId : null,
+        );
         final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
         if (googleUser == null) {
           setState(() => _isLoading = false);
@@ -1023,7 +1015,7 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Center(child: BrandLogo(width: 220)),
+              const Center(child: BrandTile(size: 130)),
               const SizedBox(height: 28),
               Text('Welcome Back', style: AppTextStyles.h2),
               const SizedBox(height: 8),
@@ -1089,7 +1081,18 @@ class SocialLoginButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Buttons appear only for sign-in options that are set up (assets/config/social.json).
+    return FutureBuilder<SocialConfig>(
+      future: SocialConfig.load(),
+      initialData: SocialConfig.current,
+      builder: (context, snap) => _buttons(snap.data),
+    );
+  }
+
+  Widget _buttons(SocialConfig? social) {
     final bool isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+    final google = social?.googleReady ?? false;
+    final facebook = social?.facebookReady ?? false;
 
     return Column(
       children: [
@@ -1128,27 +1131,30 @@ class SocialLoginButtons extends StatelessWidget {
               ),
             ),
           ),
+          if (google || facebook) ...[
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (google) _buildSocialIcon(icon: Icons.g_mobiledata_rounded, label: 'Google', onTap: () => onSocialSelect('google')),
+                if (google && facebook) const SizedBox(width: 12),
+                if (facebook) _buildSocialIcon(icon: Icons.facebook, label: 'Facebook', onTap: () => onSocialSelect('facebook')),
+              ],
+            ),
+          ],
         ] else ...[
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _buildSocialIcon(
-                icon: Icons.g_mobiledata_rounded,
-                label: 'Google',
-                onTap: () => onSocialSelect('google'),
-              ),
-              const SizedBox(width: 12),
-              _buildSocialIcon(
-                icon: Icons.apple,
-                label: 'Apple',
-                onTap: () => onSocialSelect('apple'),
-              ),
-              const SizedBox(width: 12),
-              _buildSocialIcon(
-                icon: Icons.facebook,
-                label: 'Facebook',
-                onTap: () => onSocialSelect('facebook'),
-              ),
+              if (google) ...[
+                _buildSocialIcon(icon: Icons.g_mobiledata_rounded, label: 'Google', onTap: () => onSocialSelect('google')),
+                const SizedBox(width: 12),
+              ],
+              _buildSocialIcon(icon: Icons.apple, label: 'Apple', onTap: () => onSocialSelect('apple')),
+              if (facebook) ...[
+                const SizedBox(width: 12),
+                _buildSocialIcon(icon: Icons.facebook, label: 'Facebook', onTap: () => onSocialSelect('facebook')),
+              ],
             ],
           ),
         ],

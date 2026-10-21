@@ -72,6 +72,24 @@ class BrandLogo extends StatelessWidget {
       Image.asset(asset, width: width, fit: BoxFit.contain, semanticLabel: 'Reliiance Rewards');
 }
 
+/// The square Reliiance Rewards logo tile (gold "R" above the wordmark), for the splash
+/// and sign-in screens — the same artwork as the app icon.
+class BrandTile extends StatelessWidget {
+  final double size;
+  const BrandTile({Key? key, this.size = 200}) : super(key: key);
+
+  static const asset = 'assets/images/logo_tile.png';
+
+  @override
+  Widget build(BuildContext context) => Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(size * 0.16),
+          boxShadow: [BoxShadow(color: AppColors.primaryGold.withValues(alpha: 0.22), blurRadius: size * 0.25, spreadRadius: 2)],
+        ),
+        child: Image.asset(asset, width: size, height: size * 387 / 373, fit: BoxFit.contain, semanticLabel: 'Reliiance Rewards'),
+      );
+}
+
 /// The gold "R" from the Reliiance Rewards logo, breathing in and out — the app's loading mark.
 class BrandPulse extends StatefulWidget {
   final double size;
