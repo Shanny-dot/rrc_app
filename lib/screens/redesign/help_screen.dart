@@ -12,7 +12,10 @@ import 'welcome_tour.dart';
 
 /// Contact details and help content, edited by staff on the admin "Help & Contact" page.
 class ProgramContact {
+  static const defaultBookTimeMessage = 'Choose a day and time that suits you. A team member will be in touch soon.';
+
   final String cardTitle;
+  final String bookTimeMessage;
   final String name;
   final String phone;
   final String email;
@@ -24,6 +27,7 @@ class ProgramContact {
 
   const ProgramContact({
     this.cardTitle = 'Contact us',
+    this.bookTimeMessage = defaultBookTimeMessage,
     this.name = 'Your Reliiance broker',
     this.phone = '',
     this.email = '',
@@ -54,6 +58,7 @@ class ProgramContact {
     String v(String key) => (c[key] ?? '').trim();
     return _cached = ProgramContact(
       cardTitle: v('contact_card_title').isEmpty ? 'Contact us' : v('contact_card_title'),
+      bookTimeMessage: v('book_time_message').isEmpty ? defaultBookTimeMessage : v('book_time_message'),
       name: v('contact_name').isEmpty ? 'Your Reliiance broker' : v('contact_name'),
       phone: v('contact_phone'),
       email: v('contact_email'),
@@ -300,7 +305,7 @@ class _BookTimeSheetState extends State<_BookTimeSheet> {
     if (!mounted) return;
     if (res['success'] == true) {
       Navigator.pop(context);
-      showToast(context, 'Request sent. ${widget.info.name} will be in touch to confirm a time.');
+      showToast(context, 'Request sent. A team member will be in touch soon.');
     } else {
       setState(() {
         _sending = false;
@@ -335,7 +340,7 @@ class _BookTimeSheetState extends State<_BookTimeSheet> {
           children: [
             Text('Book a time', style: AppTextStyles.h3),
             const SizedBox(height: 4),
-            Text('Choose a day and time that suits you. ${widget.info.name} will call to confirm.', style: AppTextStyles.bodyMedium),
+            Text(widget.info.bookTimeMessage, style: AppTextStyles.bodyMedium),
             const SizedBox(height: 18),
             Text('Day', style: AppTextStyles.labelMedium),
             const SizedBox(height: 8),

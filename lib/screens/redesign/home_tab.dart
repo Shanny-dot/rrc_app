@@ -29,7 +29,6 @@ class _DashboardTabState extends State<DashboardTab> {
 
   final ApiService _api = ApiService();
   bool _isLoading = true;
-  ProgramContact _contact = const ProgramContact();
   Map<String, dynamic>? _profile;
   List<dynamic> _activity = [];
   bool _hasUnread = false;
@@ -51,11 +50,12 @@ class _DashboardTabState extends State<DashboardTab> {
       }
       if (me['success']) _profile = me['data'];
 
-      final results = await Future.wait([_api.getTransactions(), _api.getNotifications(), ProgramContact.load(refresh: true)]);
-      _contact = results[2] as ProgramContact;
-      final tx = results[0] as Map<String, dynamic>;
+      // Refresh the help/contact settings in the background for the Help page.
+      ProgramContact.load(refresh: true);
+      final results = await Future.wait([_api.getTransactions(), _api.getNotifications()]);
+      final tx = results[0];
       if (tx['success'] && tx['data'] is List) _activity = tx['data'];
-      final notes = results[1] as Map<String, dynamic>;
+      final notes = results[1];
       if (notes['success'] && notes['data'] is List && (notes['data'] as List).isNotEmpty) {
         final latest = Fmt.parse((notes['data'] as List).first['at']);
         final seenRaw = await _api.storage.read(key: _kNotificationsSeenKey);
@@ -122,8 +122,6 @@ class _DashboardTabState extends State<DashboardTab> {
                 const SizedBox(width: 12),
                 _quickAction(Icons.calendar_today_outlined, 'Events', () => widget.onNavigateToTab(3)),
               ]),
-              const SizedBox(height: 16),
-              BrokerCard(info: _contact),
               const SizedBox(height: 28),
               Text('Recent activity', style: AppTextStyles.h3),
               const SizedBox(height: 14),

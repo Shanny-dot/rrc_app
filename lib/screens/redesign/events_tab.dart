@@ -467,6 +467,43 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     });
   }
 
+  /// "Your rewards for this event": points for attending and for each friend you bring.
+  Widget _rewardsCard(bool past) {
+    Widget row(IconData icon, String points, String what) => Padding(
+          padding: const EdgeInsets.only(top: 10),
+          child: Row(children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: const BoxDecoration(color: UiColors.goldBg, shape: BoxShape.circle),
+              child: Icon(icon, color: AppColors.primaryGold, size: 18),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('+$points points', style: AppTextStyles.labelLarge.copyWith(color: AppColors.primaryGold, fontWeight: FontWeight.w700)),
+                Text(what, style: AppTextStyles.labelSmall),
+              ]),
+            ),
+          ]),
+        );
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceCard,
+        borderRadius: BorderRadius.circular(AppDimens.radiusCard),
+        border: Border.all(color: AppColors.primaryGold.withValues(alpha: 0.35)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('Your rewards for this event', style: AppTextStyles.labelLarge.copyWith(fontWeight: FontWeight.w700)),
+        if (_hasPoints(e, 'points_for_attending'))
+          row(Icons.event_available_outlined, eventPointsText(e, 'points_for_attending'), 'For attending — check in on the day with the Check in button'),
+        if (_hasPoints(e, 'points_for_referring') && !past)
+          row(Icons.group_add_outlined, eventPointsText(e, 'points_for_referring'), 'For each friend you bring who checks in'),
+      ]),
+    );
+  }
+
   Widget _infoRow(IconData icon, String text) => Padding(
         padding: const EdgeInsets.only(bottom: 10),
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -506,7 +543,10 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                     const SizedBox(height: 16),
                     if (start != null) _infoRow(Icons.calendar_today_outlined, '${Fmt.dayDate(start)} · ${Fmt.time(start)}'),
                     if (location.isNotEmpty) _infoRow(Icons.place_outlined, location),
-                    EventPointsPills(event: e, past: past),
+                    if (_hasPoints(e, 'points_for_attending') || _hasPoints(e, 'points_for_referring')) ...[
+                      const SizedBox(height: 12),
+                      _rewardsCard(past),
+                    ],
                     const SizedBox(height: 20),
                     Text('About this event', style: AppTextStyles.h3.copyWith(fontSize: 17)),
                     const SizedBox(height: 8),
@@ -531,11 +571,6 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                           SelectableText(attendeeInfo, style: AppTextStyles.bodyMedium.copyWith(height: 1.5, color: AppColors.textPrimary)),
                         ]),
                       ),
-                    ],
-                    if (!past && _hasPoints(e, 'points_for_attending')) ...[
-                      const SizedBox(height: 20),
-                      Text('Collect your points on the day with the Check in button on the Events screen.',
-                          style: AppTextStyles.labelSmall),
                     ],
                   ]),
                 ),

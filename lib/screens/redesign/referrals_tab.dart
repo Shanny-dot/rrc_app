@@ -10,20 +10,22 @@ import '../dashboard_screens.dart' show ReferFormScreen;
 import '../import_contacts_screen.dart';
 import '../../widgets/loading.dart';
 
-/// The three stages shown on each referral card.
-const kReferralSteps = ['Invited', 'Pending /\nsigned up', 'Points added\nto account'];
+/// The stages shown on each referral card ("Not proceeding" shows as a status instead).
+const kReferralSteps = ['Invited', 'Pending', 'Signed up', 'Points\nadded'];
 
 /// How many steps are complete for a backend status.
 int completedSteps(String status) {
   switch (status) {
-    case 'registered':
-    case 'contacted': // older, more detailed stages count as the middle one
+    case 'pending':
+    case 'contacted': // older, more detailed stages count as Pending
     case 'loan_in_progress':
     case 'settled':
       return 2;
-    case 'rewarded':
+    case 'registered':
       return 3;
-    default: // pending, invited, closed
+    case 'rewarded':
+      return 4;
+    default: // invited, closed
       return 1;
   }
 }
@@ -32,6 +34,7 @@ String referralStatusLabel(String status) {
   switch (status) {
     case 'registered':
       return 'Signed up';
+    case 'pending':
     case 'contacted':
     case 'loan_in_progress':
     case 'settled':
@@ -250,7 +253,7 @@ class ReferralCard extends StatelessWidget {
 }
 
 class _Stepper extends StatelessWidget {
-  final int done; // number of completed steps (1–3)
+  final int done; // number of completed steps (1–4)
   const _Stepper({required this.done});
 
   @override
@@ -271,7 +274,7 @@ class _Stepper extends StatelessWidget {
       const SizedBox(height: 6),
       // Labels centred under their dots (positions match the dot row above).
       LayoutBuilder(builder: (context, c) {
-        const labelW = 96.0;
+        const labelW = 76.0;
         final w = c.maxWidth;
         final step = (w - dot) / (kReferralSteps.length - 1);
         return SizedBox(
