@@ -1,6 +1,6 @@
 name: rrc_app
 description: RRC App Frontend
-version: 3.3.0+53
+version: 3.3.0+54
 
 environment:
   sdk: ">=3.0.0 <4.0.0"

@@ -252,7 +252,7 @@ class _QuickSignUpScreenState extends State<QuickSignUpScreen> {
         );
         final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
         if (googleUser == null) {
-          setState(() => _isLoading = false);
+          if (mounted) setState(() => _isLoading = false);
           return;
         }
         final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
@@ -272,11 +272,20 @@ class _QuickSignUpScreenState extends State<QuickSignUpScreen> {
         } else {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Google Sign-In: ${res["error"]}')),
+              SnackBar(content: Text('Google Sign-In: ${res["error"] ?? "Authentication failed"}')),
             );
           }
         }
       } else if (provider == 'apple') {
+        if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Sign in with Apple is only supported on Apple devices.')),
+            );
+          }
+          setState(() => _isLoading = false);
+          return;
+        }
         final credential = await SignInWithApple.getAppleIDCredential(
           scopes: [
             AppleIDAuthorizationScopes.email,
@@ -823,7 +832,7 @@ class _LoginScreenState extends State<LoginScreen> {
         );
         final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
         if (googleUser == null) {
-          setState(() => _isLoading = false);
+          if (mounted) setState(() => _isLoading = false);
           return;
         }
         final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
@@ -843,11 +852,20 @@ class _LoginScreenState extends State<LoginScreen> {
         } else {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Google Sign-In: ${res["error"]}')),
+              SnackBar(content: Text('Google Sign-In: ${res["error"] ?? "Authentication failed"}')),
             );
           }
         }
       } else if (provider == 'apple') {
+        if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Sign in with Apple is only supported on Apple devices.')),
+            );
+          }
+          setState(() => _isLoading = false);
+          return;
+        }
         final credential = await SignInWithApple.getAppleIDCredential(
           scopes: [
             AppleIDAuthorizationScopes.email,
@@ -1055,6 +1073,7 @@ class SocialLoginButtons extends StatelessWidget {
     final bool isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
     final google = social?.googleReady ?? false;
     final facebook = social?.facebookReady ?? false;
+    if (!isIOS && !google && !facebook) return const SizedBox.shrink();
 
     return Column(
       children: [
@@ -1105,18 +1124,13 @@ class SocialLoginButtons extends StatelessWidget {
             ),
           ],
         ] else ...[
+          // Sign in with Apple is offered on iPhone / iPad only.
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              if (google) ...[
-                _buildSocialIcon(icon: Icons.g_mobiledata_rounded, label: 'Google', onTap: () => onSocialSelect('google')),
-                const SizedBox(width: 12),
-              ],
-              _buildSocialIcon(icon: Icons.apple, label: 'Apple', onTap: () => onSocialSelect('apple')),
-              if (facebook) ...[
-                const SizedBox(width: 12),
-                _buildSocialIcon(icon: Icons.facebook, label: 'Facebook', onTap: () => onSocialSelect('facebook')),
-              ],
+              if (google) _buildSocialIcon(icon: Icons.g_mobiledata_rounded, label: 'Google', onTap: () => onSocialSelect('google')),
+              if (google && facebook) const SizedBox(width: 12),
+              if (facebook) _buildSocialIcon(icon: Icons.facebook, label: 'Facebook', onTap: () => onSocialSelect('facebook')),
             ],
           ),
         ],
