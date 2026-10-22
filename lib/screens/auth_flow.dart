@@ -247,6 +247,15 @@ class _QuickSignUpScreenState extends State<QuickSignUpScreen> {
           }
         }
       } else if (provider == 'apple') {
+        if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Sign in with Apple is only supported on Apple devices.')),
+            );
+          }
+          setState(() => _isLoading = false);
+          return;
+        }
         final credential = await SignInWithApple.getAppleIDCredential(
           scopes: [
             AppleIDAuthorizationScopes.email,
@@ -815,6 +824,15 @@ class _LoginScreenState extends State<LoginScreen> {
           }
         }
       } else if (provider == 'apple') {
+        if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Sign in with Apple is only supported on Apple devices.')),
+            );
+          }
+          setState(() => _isLoading = false);
+          return;
+        }
         final credential = await SignInWithApple.getAppleIDCredential(
           scopes: [
             AppleIDAuthorizationScopes.email,
@@ -1079,13 +1097,7 @@ class SocialLoginButtons extends StatelessWidget {
                 label: 'Google',
                 onTap: () => onSocialSelect('google'),
               ),
-              const SizedBox(width: 12),
-              _buildSocialIcon(
-                icon: Icons.apple,
-                label: 'Apple',
-                onTap: () => onSocialSelect('apple'),
-              ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
               _buildSocialIcon(
                 icon: Icons.facebook,
                 label: 'Facebook',
