@@ -2,10 +2,9 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Phone push alerts (Firebase Cloud Messaging via APNs) -->
-	<key>aps-environment</key>
-	<string>production</string>
-	<!-- Sign in with Apple -->
+	<!-- Sign in with Apple. Phone push alerts (aps-environment) are added back once Push
+	     Notifications is enabled for com.rrc.app in the Apple Developer account and an APNs
+	     key is uploaded to Firebase; without that, App Store export fails. -->
 	<key>com.apple.developer.applesignin</key>
 	<array>
 		<string>Default</string>
