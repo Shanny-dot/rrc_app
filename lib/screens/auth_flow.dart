@@ -210,7 +210,7 @@ class _QuickSignUpScreenState extends State<QuickSignUpScreen> {
         if (mounted) {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => OTPVerificationScreen(mobileNumber: _fullMobile)),
+            MaterialPageRoute(builder: (_) => OTPVerificationScreen(mobileNumber: _fullMobile, email: _emailController.text.trim())),
           );
         }
       } else {
@@ -478,10 +478,12 @@ class _QuickSignUpScreenState extends State<QuickSignUpScreen> {
   }
 }
 
+/// After sign-up: one code is texted and one is emailed. Entering both finishes setting up
+/// the account; the welcome points are added once both are verified.
 class OTPVerificationScreen extends StatefulWidget {
   final String mobileNumber;
-
-  const OTPVerificationScreen({Key? key, required this.mobileNumber}) : super(key: key);
+  final String email;
+  const OTPVerificationScreen({Key? key, required this.mobileNumber, required this.email}) : super(key: key);
 
   @override
   State<OTPVerificationScreen> createState() => _OTPVerificationScreenState();
@@ -489,109 +491,96 @@ class OTPVerificationScreen extends StatefulWidget {
 
 class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
   final _mobileCodeController = TextEditingController();
+  final _emailCodeController = TextEditingController();
   bool _isLoading = false;
 
   @override
   void dispose() {
     _mobileCodeController.dispose();
+    _emailCodeController.dispose();
     super.dispose();
   }
 
+  void _say(String message) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+
   Future<void> _verifyAccount() async {
-    // The code should theoretically come from the 6 boxes, 
-    // but we can just use the controller or combine the boxes.
-    // Let's assume there is a single text field instead for simplicity, 
-    // or we can read from the individual boxes. 
-    // Wait, the UI has 6 individual boxes but they aren't wired up to a single controller.
-    // Let's modify the UI to use a single DarkTextField for the Mobile OTP for easier testing.
-    
-    if (_mobileCodeController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter the mobile OTP')),
-      );
+    final mobileCode = _mobileCodeController.text.trim();
+    final emailCode = _emailCodeController.text.trim();
+    if (mobileCode.isEmpty || emailCode.isEmpty) {
+      _say('Please enter both codes: one was texted to you and one was emailed.');
       return;
     }
-
     setState(() => _isLoading = true);
-
-    final api = ApiService();
-    final result = await api.verifyMobile(widget.mobileNumber, _mobileCodeController.text);
-
+    final result = await ApiService().verifySignup(widget.email, mobileCode, emailCode);
+    if (!mounted) return;
     setState(() => _isLoading = false);
-
     if (result['success']) {
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const WelcomeBonusScreen()),
-        );
-      }
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const WelcomeBonusScreen()));
     } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Verification Failed: ${result["error"]}')),
-        );
-      }
+      _say(result['error'].toString());
     }
+  }
+
+  Future<void> _resend(String channel) async {
+    _say('Sending a new code…');
+    final res = await ApiService().sendSignupCode(channel, widget.email);
+    if (!mounted) return;
+    _say(res['success']
+        ? (channel == 'sms' ? 'New code sent to your mobile.' : 'New code sent to your email.')
+        : res['error'].toString());
+  }
+
+  Widget _codeField(String title, String sentTo, TextEditingController controller, String channel) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(title, style: AppTextStyles.labelLarge),
+      const SizedBox(height: 4),
+      Text('Sent to $sentTo', style: AppTextStyles.labelSmall),
+      const SizedBox(height: 12),
+      DarkTextField(
+        hint: 'Enter 6-digit code',
+        keyboardType: TextInputType.number,
+        textAlign: TextAlign.center,
+        controller: controller,
+      ),
+      Align(
+        alignment: Alignment.centerRight,
+        child: TextButton(
+          onPressed: () => _resend(channel),
+          child: Text('Resend code', style: AppTextStyles.labelMedium.copyWith(color: AppColors.primaryGold)),
+        ),
+      ),
+    ]);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        leading: BackButton(color: AppColors.textPrimary),
-      ),
+      appBar: AppBar(leading: BackButton(color: AppColors.textPrimary)),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(AppDimens.pageMargin),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Verification', style: AppTextStyles.h2),
+              Text('Verify your account', style: AppTextStyles.h2),
               const SizedBox(height: 8),
-              Text('Please verify your mobile and email.', style: AppTextStyles.bodyMedium),
-              const SizedBox(height: 32),
-              
+              Text('We\'ve texted a code to your mobile and emailed another to you. Enter both to finish '
+                  'setting up your account and collect your bonus points.', style: AppTextStyles.bodyMedium),
+              const SizedBox(height: 28),
               Expanded(
                 child: SingleChildScrollView(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Mobile OTP', style: AppTextStyles.labelLarge),
+                      _codeField('Mobile code', widget.mobileNumber, _mobileCodeController, 'sms'),
+                      const SizedBox(height: 16),
+                      _codeField('Email code', widget.email, _emailCodeController, 'email'),
                       const SizedBox(height: 8),
-                      Text('Sent to ' + widget.mobileNumber, style: AppTextStyles.labelSmall),
-                      const SizedBox(height: 16),
-                      // Replace the 6 dummy boxes with a single input for easier integration
-                      DarkTextField(
-                        hint: 'Enter 6-digit mobile code', 
-                        keyboardType: TextInputType.number, 
-                        textAlign: TextAlign.center,
-                        controller: _mobileCodeController,
-                      ),
-                      const SizedBox(height: 16),
-                      Center(
-                        child: TextButton(
-                          onPressed: () async {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Sending new code...')),
-                            );
-                            final api = ApiService();
-                            final res = await api.resendOTP(widget.mobileNumber);
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text(res['success'] ? 'New code sent!' : 'Failed: ${res["error"]}')),
-                              );
-                            }
-                          },
-                          child: Text('Resend code', style: AppTextStyles.labelMedium.copyWith(color: AppColors.primaryGold)),
-                        ),
-                      ),
-                      const SizedBox(height: 32),
+                      Text('Can\'t see the email? Check your Spam or Junk folder.', style: AppTextStyles.labelSmall),
                     ],
                   ),
                 ),
               ),
-              
               GoldButton(
                 text: _isLoading ? 'Verifying...' : 'Verify & Continue',
                 onPressed: _isLoading ? () {} : _verifyAccount,
@@ -599,33 +588,6 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
               const SizedBox(height: 16),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildOTPBox(BuildContext context, bool isActive) {
-    return Container(
-      width: 48,
-      height: 56,
-      decoration: BoxDecoration(
-        color: AppColors.inputFill,
-        borderRadius: BorderRadius.circular(AppDimens.radiusInput),
-        border: Border.all(
-          color: isActive ? AppColors.primaryGold : Colors.transparent,
-          width: 1.5,
-        ),
-      ),
-      child: TextField(
-        textAlign: TextAlign.center,
-        keyboardType: TextInputType.number,
-        maxLength: 1,
-        style: AppTextStyles.h3,
-        decoration: const InputDecoration(
-          counterText: '',
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
         ),
       ),
     );

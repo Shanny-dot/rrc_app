@@ -217,6 +217,43 @@ class ApiService {
     }
   }
 
+  // ── Mobile and email verification (points are added once both are verified) ──
+
+  Future<Map<String, dynamic>> _postJson(String path, Map<String, dynamic> body, String fallbackError,
+      {bool signedIn = false}) async {
+    final headers = signedIn ? await _getHeaders() : {'Content-Type': 'application/json'};
+    final response = await _safeRequest(() => http.post(Uri.parse('$baseUrl$path'), headers: headers, body: jsonEncode(body)));
+    dynamic data;
+    try {
+      data = jsonDecode(response.body);
+    } catch (_) {
+      data = {};
+    }
+    if (response.statusCode == 200) return {'success': true, 'data': data};
+    return {'success': false, 'error': (data is Map ? data['detail'] : null) ?? fallbackError};
+  }
+
+  /// Sign-up screen: send a new 'sms' or 'email' code for the account with this email.
+  Future<Map<String, dynamic>> sendSignupCode(String channel, String email) =>
+      _postJson('/api/v1/auth/send-code', {'channel': channel, 'email': email}, 'Could not send a new code');
+
+  /// Sign-up screen: both codes. On success the member is signed in.
+  Future<Map<String, dynamic>> verifySignup(String email, String mobileCode, String emailCode) async {
+    final res = await _postJson('/api/v1/auth/verify-signup',
+        {'email': email, 'mobile_code': mobileCode, 'email_code': emailCode}, 'Verification failed');
+    final token = res['success'] ? res['data']['access_token'] : null;
+    if (token is String && token.isNotEmpty) await saveToken(token);
+    return res;
+  }
+
+  /// Signed in: send a new 'sms' or 'email' code to the member's own mobile / email.
+  Future<Map<String, dynamic>> sendMyCode(String channel) =>
+      _postJson('/api/v1/auth/verification/send', {'channel': channel}, 'Could not send a new code', signedIn: true);
+
+  /// Signed in: check one code. data has mobile_verified, email_verified, verified, points_added.
+  Future<Map<String, dynamic>> checkMyCode(String channel, String code) =>
+      _postJson('/api/v1/auth/verification/check', {'channel': channel, 'code': code}, 'Verification failed', signedIn: true);
+
   // Submit Referral
   Future<Map<String, dynamic>> submitReferral(Map<String, dynamic> referralData) async {
     final headers = await _getHeaders();

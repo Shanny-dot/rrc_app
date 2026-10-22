@@ -9,6 +9,7 @@ import '../../widgets/ui_kit.dart';
 import 'help_screen.dart';
 import 'loan_checkin_screen.dart';
 import 'profile_screen.dart';
+import 'verify_account_screen.dart';
 import 'welcome_tour.dart';
 
 const _kNotificationsSeenKey = 'notifications_seen_at';
@@ -99,6 +100,8 @@ class _DashboardTabState extends State<DashboardTab> {
     final initial = firstName.isNotEmpty ? firstName[0].toUpperCase() : 'M';
     final points = Fmt.toInt(_profile?['total_points']);
     final profileComplete = _profile?['profile_complete'] == true;
+    final verification = _profile?['verification'] is Map ? Map<String, dynamic>.from(_profile!['verification']) : null;
+    final needsVerifying = verification != null && verification['verified'] != true;
     final tier = _profile?['tier'] is Map ? Map<String, dynamic>.from(_profile!['tier']) : <String, dynamic>{};
 
     return Scaffold(
@@ -112,7 +115,8 @@ class _DashboardTabState extends State<DashboardTab> {
             children: [
               _header(initial, firstName),
               const SizedBox(height: 20),
-              if (!profileComplete) ...[_profileBanner(), const SizedBox(height: 16)],
+              if (needsVerifying) ...[_verifyBanner(verification), const SizedBox(height: 16)]
+              else if (!profileComplete) ...[_profileBanner(), const SizedBox(height: 16)],
               _pointsCard(points, tier),
               const SizedBox(height: 16),
               Row(children: [
@@ -204,6 +208,37 @@ class _DashboardTabState extends State<DashboardTab> {
           ),
         ),
       ],
+    );
+  }
+
+  /// Members who haven't verified their mobile and email yet; their welcome points wait for it.
+  Widget _verifyBanner(Map<String, dynamic> verification) {
+    final pending = Fmt.toInt(verification['pending_welcome_points']);
+    return GestureDetector(
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const VerifyAccountScreen())).then((_) => _load()),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.primaryGold.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(AppDimens.radiusCard),
+          border: Border.all(color: AppColors.primaryGold.withValues(alpha: 0.5)),
+        ),
+        child: Row(children: [
+          const Icon(Icons.verified_user_outlined, color: AppColors.primaryGold, size: 26),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Verify your account', style: AppTextStyles.labelLarge.copyWith(color: AppColors.primaryGold)),
+              const SizedBox(height: 2),
+              Text(pending > 0
+                  ? 'Confirm your mobile and email to collect your ${Fmt.number(pending)} bonus points.'
+                  : 'Confirm your mobile and email to finish setting up your account.',
+                  style: AppTextStyles.labelMedium),
+            ]),
+          ),
+          const Icon(Icons.arrow_forward_rounded, color: AppColors.primaryGold, size: 20),
+        ]),
+      ),
     );
   }
 
