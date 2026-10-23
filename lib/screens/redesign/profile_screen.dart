@@ -77,6 +77,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _postcodeCtrl = TextEditingController();
 
   DateTime? _dob;
+  bool _dobLocked = false; // saved dates of birth can't be changed (staff can correct them)
   String? _gender;
   String? _state;
   String? _industry;
@@ -111,6 +112,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _suburbCtrl.text = (p['city'] ?? '').toString();
         _postcodeCtrl.text = (p['postal_code'] ?? '').toString();
         _dob = p['dob'] != null ? DateTime.tryParse(p['dob'].toString()) : null;
+        _dobLocked = _dob != null;
         _gender = ProfileOptions.normalise(p['gender']?.toString(), ProfileOptions.genders);
         _state = ProfileOptions.normalise(p['state']?.toString(), ProfileOptions.states);
         _industry = ProfileOptions.normalise(p['industry']?.toString(), ProfileOptions.industries);
@@ -166,7 +168,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     };
     final res = await _api.updateProfile(payload);
     if (!mounted) return;
-    setState(() => _isSaving = false);
+    setState(() {
+      _isSaving = false;
+      if (res['success'] && _dob != null) _dobLocked = true;
+    });
     showToast(context, res['success'] ? 'Profile saved.' : (res['error'] ?? 'Failed to save').toString(), error: !res['success']);
   }
 
@@ -233,7 +238,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _dateField() {
     return GestureDetector(
-      onTap: _pickDob,
+      onTap: _dobLocked
+          ? () => showToast(context, 'Your date of birth can\'t be changed. If it\'s wrong, please contact us.')
+          : _pickDob,
       child: Container(
         height: 56,
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -243,7 +250,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Text(_dob == null ? 'DD/MM/YYYY' : Fmt.dmy(_dob),
                 style: _dob == null ? AppTextStyles.bodyMedium : const TextStyle(color: AppColors.textPrimary, fontSize: 16)),
           ),
-          const Icon(Icons.calendar_today_outlined, color: AppColors.textSecondary, size: 20),
+          Icon(_dobLocked ? Icons.lock_outline : Icons.calendar_today_outlined, color: AppColors.textSecondary, size: 20),
         ]),
       ),
     );
