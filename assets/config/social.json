@@ -1,6 +1,6 @@
 {
   "_comment": "Public sign-in IDs (safe to ship in the app). Fill these in to turn on Google and Facebook sign-in. The backend needs the matching GOOGLE_CLIENT_IDS, FACEBOOK_APP_ID and FACEBOOK_APP_SECRET environment variables.",
-  "google_web_client_id": "785942700049-923gl843cc8uobness52hca3ebi2er2a.apps.googleusercontent.com",
+  "google_web_client_id": "785942700049-bn1cg3fbiljskehbj9tm7ep88rjlt82t.apps.googleusercontent.com",
   "google_ios_client_id": "785942700049-nsu5eo2srl353tg55olt0h53jshcses9.apps.googleusercontent.com",
   "facebook_app_id": "",
   "facebook_client_token": ""
